@@ -1,7 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CreditCard, DollarSign, Users } from "lucide-react";
 import SideNav from "@/components/SideNav";
 
 type OrderItem = {
@@ -16,34 +26,34 @@ type Order = {
     table_number: string;
     number_of_customers: number;
     items: OrderItem[];
-    total_price: number | string; // e.g., 43.14 if in THB
+    total_price: number | string;
     status: string;
 };
 
 export default function PaymentDashboard() {
     const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchOrders();
     }, []);
 
-    // Fetch orders waiting for payment
     const fetchOrders = async () => {
+        setLoading(true);
         try {
             const res = await fetch("/api/orders");
             const data = await res.json();
-            // Filter orders that are waiting for payment
             const filtered = data.filter(
                 (order: Order) => order.status === "waiting-for-payment"
             );
             setOrders(filtered);
         } catch (error) {
             console.error("Error fetching orders:", error);
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Update order status (e.g., marking as paid or cancelled)
     const updateStatus = async (orderId: number, newStatus: string) => {
         try {
             const res = await fetch(`/api/orders/${orderId}`, {
@@ -61,11 +71,8 @@ export default function PaymentDashboard() {
         }
     };
 
-    // Handle Stripe payment for an order by creating a Checkout Session
     const handleStripePayment = async (order: Order) => {
         try {
-            // IMPORTANT: Ensure your DB stores the total price in THB as a decimal.
-            // Multiply by 100 to convert THB to satang.
             const rawTotal = Number(order.total_price);
             const amountInSatang = Math.round(rawTotal * 100);
 
@@ -78,7 +85,7 @@ export default function PaymentDashboard() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     orderId: order.id,
-                    amount: amountInSatang, // this should now be an integer
+                    amount: amountInSatang,
                     currency: "thb",
                 }),
             });
@@ -94,59 +101,111 @@ export default function PaymentDashboard() {
     };
 
     return (
-        <div className="flex h-screen">
+        <div className="flex h-screen bg-gray-100">
             <SideNav />
-            <div className="flex-1 overflow-y-auto p-4">
-                <h1 className="text-2xl font-bold mb-4">Payment Dashboard</h1>
+            <div className="flex-1 overflow-y-auto p-8">
+                <h1 className="text-3xl font-bold mb-6">Payment Dashboard</h1>
                 {loading ? (
-                    <p>Loading orders...</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[...Array(3)].map((_, index) => (
+                            <Card key={index}>
+                                <CardHeader>
+                                    <Skeleton className="h-4 w-[250px]" />
+                                </CardHeader>
+                                <CardContent>
+                                    <Skeleton className="h-4 w-[200px] mb-2" />
+                                    <Skeleton className="h-4 w-[150px] mb-2" />
+                                    <Skeleton className="h-4 w-[100px]" />
+                                </CardContent>
+                                <CardFooter>
+                                    <Skeleton className="h-10 w-full" />
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
                 ) : orders.length === 0 ? (
-                    <p>No orders waiting for payment.</p>
+                    <Card>
+                        <CardContent className="flex items-center justify-center h-32">
+                            <p className="text-lg text-gray-500">
+                                No orders waiting for payment.
+                            </p>
+                        </CardContent>
+                    </Card>
                 ) : (
-                    orders.map((order) => (
-                        <div key={order.id} className="border p-4 my-2 rounded">
-                            <div className="flex justify-between items-center">
-                                <p>
-                                    <strong>Order ID:</strong> {order.id}
-                                </p>
-                                <p>
-                                    <strong>Status:</strong> {order.status}
-                                </p>
-                            </div>
-                            <p>
-                                <strong>Table:</strong> {order.table_number}
-                            </p>
-                            <p>
-                                <strong>Customers:</strong>{" "}
-                                {order.number_of_customers}
-                            </p>
-                            <p>
-                                <strong>Total:</strong> $
-                                {Number(order.total_price).toFixed(2)}
-                            </p>
-                            <div className="flex gap-2 mt-4">
-                                <Button
-                                    onClick={() =>
-                                        updateStatus(order.id, "paid")
-                                    }
-                                >
-                                    Mark as Paid
-                                </Button>
-                                <Button
-                                    onClick={() =>
-                                        updateStatus(order.id, "cancelled")
-                                    }
-                                >
-                                    Cancel Order
-                                </Button>
-                                <Button
-                                    onClick={() => handleStripePayment(order)}
-                                >
-                                    Pay with Stripe
-                                </Button>
-                            </div>
-                        </div>
-                    ))
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {orders.map((order) => (
+                            <Card key={order.id}>
+                                <CardHeader>
+                                    <CardTitle className="flex justify-between items-center">
+                                        <span>Order #{order.id}</span>
+                                        <Badge variant="secondary">
+                                            {order.status}
+                                        </Badge>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center">
+                                            <Users className="mr-2 h-4 w-4" />
+                                            <span>
+                                                Table {order.table_number}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <Users className="mr-2 h-4 w-4" />
+                                            <span>
+                                                {order.number_of_customers}{" "}
+                                                customers
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center font-bold">
+                                            <DollarSign className="mr-2 h-4 w-4" />
+                                            <span>
+                                                {Number(
+                                                    order.total_price
+                                                ).toFixed(2)}{" "}
+                                                THB
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                <CardFooter className="flex flex-col gap-2">
+                                    <Button
+                                        className="w-full"
+                                        onClick={() =>
+                                            handleStripePayment(order)
+                                        }
+                                    >
+                                        <CreditCard className="mr-2 h-4 w-4" />{" "}
+                                        Pay with Stripe
+                                    </Button>
+                                    <div className="flex gap-2 w-full">
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() =>
+                                                updateStatus(order.id, "paid")
+                                            }
+                                        >
+                                            Mark as Paid
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="flex-1"
+                                            onClick={() =>
+                                                updateStatus(
+                                                    order.id,
+                                                    "cancelled"
+                                                )
+                                            }
+                                        >
+                                            Cancel Order
+                                        </Button>
+                                    </div>
+                                </CardFooter>
+                            </Card>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>
