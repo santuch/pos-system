@@ -156,7 +156,7 @@ export default function OrderSummary({
                                     {item.name}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    ${item.price.toFixed(2)}
+                                    ${Number(item.price).toFixed(2)}
                                 </p>
                             </div>
 

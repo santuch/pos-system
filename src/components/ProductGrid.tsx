@@ -103,7 +103,7 @@ export default function ProductGrid({
                                     {product.name}
                                 </h3>
                                 <p className="text-sm text-gray-500">
-                                    ${product.price.toFixed(2)}
+                                    ${Number(product.price).toFixed(2)}
                                 </p>
                             </div>
 

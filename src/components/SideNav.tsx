@@ -26,6 +26,12 @@ const menuItems = [
         href: "/table-services",
         icon: UtensilsCrossed,
     },
+    {
+        id: "ingredient-management",
+        name: "IngredientManagement",
+        href: "/ingredient-management",
+        icon: Truck,
+    },
     { id: "settings", name: "Settings", href: "/settings", icon: Settings },
 ];
 

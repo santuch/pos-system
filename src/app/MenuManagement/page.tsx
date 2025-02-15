@@ -13,6 +13,11 @@ import {
 import Image from "next/image";
 import SideNav from "@/components/SideNav";
 
+type Ingredient = {
+    name: string;
+    amount: number;
+};
+
 type MenuItem = {
     id: number;
     name: string;
@@ -20,6 +25,7 @@ type MenuItem = {
     price: number;
     description: string;
     image_url: string;
+    ingredients?: Ingredient[];
 };
 
 export default function MenuManagement() {
@@ -33,6 +39,7 @@ export default function MenuManagement() {
     const [price, setPrice] = useState("");
     const [description, setDescription] = useState("");
     const [image, setImage] = useState("");
+    const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
     const categories = [
         "Breakfast",
@@ -62,6 +69,7 @@ export default function MenuManagement() {
         setPrice("");
         setDescription("");
         setImage("");
+        setIngredients([]);
         setEditingItem(null);
         setShowModal(true);
     };
@@ -73,6 +81,7 @@ export default function MenuManagement() {
         setPrice(menu.price.toString());
         setDescription(menu.description);
         setImage(menu.image_url);
+        setIngredients(menu.ingredients || []);
         setShowModal(true);
     };
 
@@ -98,6 +107,30 @@ export default function MenuManagement() {
         }
     };
 
+    // --- Ingredient handlers ---
+    const addIngredient = () => {
+        setIngredients([...ingredients, { name: "", amount: 0 }]);
+    };
+
+    const updateIngredient = (
+        index: number,
+        field: keyof Ingredient,
+        value: string
+    ) => {
+        const updatedIngredients = [...ingredients];
+        updatedIngredients[index] = {
+            ...updatedIngredients[index],
+            [field]: field === "amount" ? Number(value) : value,
+        };
+        setIngredients(updatedIngredients);
+    };
+
+    const removeIngredient = (index: number) => {
+        const updatedIngredients = ingredients.filter((_, i) => i !== index);
+        setIngredients(updatedIngredients);
+    };
+    // --- End Ingredient handlers ---
+
     const handleSaveMenu = async () => {
         if (!menuName || !price || !image) {
             alert(
@@ -112,6 +145,7 @@ export default function MenuManagement() {
             price: parseFloat(price),
             description,
             image_url: image,
+            ingredients, // include the ingredient list
         };
 
         try {
@@ -167,6 +201,7 @@ export default function MenuManagement() {
         const data = await response.json();
         setMenuItems(data);
     };
+
     return (
         <div className="flex h-screen">
             <SideNav />
@@ -211,7 +246,7 @@ export default function MenuManagement() {
                                         {menu.name}
                                     </h3>
                                     <p className="text-sm text-gray-500">
-                                        ${menu.price.toFixed(2)}
+                                        ${Number(menu.price).toFixed(2)}
                                     </p>
                                 </div>
                                 <div className="flex gap-2 mt-2">
@@ -283,6 +318,53 @@ export default function MenuManagement() {
                                     accept="image/*"
                                     onChange={handleImageUpload}
                                 />
+                                {/* Ingredients Section */}
+                                <div className="border p-2 rounded-md">
+                                    <h3 className="font-bold mb-2">
+                                        Ingredients
+                                    </h3>
+                                    {ingredients.map((ingredient, index) => (
+                                        <div
+                                            key={index}
+                                            className="flex gap-2 mb-2"
+                                        >
+                                            <Input
+                                                placeholder="Ingredient Name"
+                                                value={ingredient.name}
+                                                onChange={(e) =>
+                                                    updateIngredient(
+                                                        index,
+                                                        "name",
+                                                        e.target.value
+                                                    )
+                                                }
+                                            />
+                                            <Input
+                                                type="number"
+                                                placeholder="Amount"
+                                                value={ingredient.amount}
+                                                onChange={(e) =>
+                                                    updateIngredient(
+                                                        index,
+                                                        "amount",
+                                                        e.target.value
+                                                    )
+                                                }
+                                            />
+                                            <Button
+                                                variant="destructive"
+                                                onClick={() =>
+                                                    removeIngredient(index)
+                                                }
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    <Button onClick={addIngredient}>
+                                        Add Ingredient
+                                    </Button>
+                                </div>
                                 <Button
                                     className="w-full bg-blue-500 hover:bg-blue-600"
                                     onClick={handleSaveMenu}
