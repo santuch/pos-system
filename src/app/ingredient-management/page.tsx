@@ -48,6 +48,7 @@ export default function IngredientManagement() {
             const res = await fetch("/api/ingredients");
             if (!res.ok) throw new Error("Failed to fetch ingredients");
             const data = await res.json();
+            console.log("Fetched ingredients:", data); // <-- Add this
             setIngredients(data);
         } catch (error) {
             console.error("Error fetching ingredients:", error);
@@ -202,6 +203,16 @@ export default function IngredientManagement() {
                     Ingredient Management
                 </h1>
 
+                {/* Global warning banner if any ingredient is low */}
+                {ingredients.some(
+                    (ing) => Number(ing.quantity) < Number(ing.threshold)
+                ) && (
+                    <div className="bg-red-100 text-red-700 p-4 mb-4 rounded-md">
+                        Warning: Some ingredients are low on stock. Please
+                        restock soon.
+                    </div>
+                )}
+
                 {/* Search and Create Ingredient */}
                 <div className="flex justify-between items-center mb-8">
                     <div className="relative w-80">
@@ -243,9 +254,16 @@ export default function IngredientManagement() {
                                     <h3 className="text-lg font-semibold">
                                         {ingredient.name}
                                     </h3>
-                                    <span className="px-2 py-1 text-sm bg-emerald-50 text-emerald-700 rounded-md">
-                                        In Stock
-                                    </span>
+                                    {Number(ingredient.quantity) <
+                                    Number(ingredient.threshold) ? (
+                                        <span className="px-2 py-1 text-sm bg-red-50 text-red-700 rounded-md">
+                                            Restock Needed
+                                        </span>
+                                    ) : (
+                                        <span className="px-2 py-1 text-sm bg-emerald-50 text-emerald-700 rounded-md">
+                                            In Stock
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="space-y-2 text-gray-600">
                                     <p>
