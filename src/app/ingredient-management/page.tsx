@@ -235,7 +235,7 @@ export default function IngredientManagement() {
                 </div>
 
                 {/* Ingredient Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
                     {filteredIngredients.map((ingredient) => (
                         <Card key={ingredient.id} className="bg-white">
                             <CardContent className="p-6">
