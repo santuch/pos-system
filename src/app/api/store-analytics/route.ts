@@ -16,15 +16,6 @@ export async function GET(request: Request) {
         dateCondition = "created_at >= NOW() - INTERVAL '30 days'";
     } else if (range === "year") {
         dateCondition = "created_at >= NOW() - INTERVAL '365 days'";
-    } else if (range === "custom") {
-        // For a custom date range, you must supply both 'start' and 'end'
-        const start = searchParams.get("start");
-        const end = searchParams.get("end");
-        if (start && end) {
-            dateCondition = `created_at >= '${start}' AND created_at <= '${end}'`;
-        } else {
-            dateCondition = "1=1";
-        }
     } else {
         dateCondition = "1=1";
     }
@@ -36,17 +27,17 @@ export async function GET(request: Request) {
             : dateCondition.replace("created_at", "o.created_at");
 
     try {
-        // 1. Fetch all 'paid' orders within the current period, including payment_method.
+        // 1. Fetch all 'paid' orders, using payments.created_at as "paid_at"
         const ordersRes = await pool.query(`
-      SELECT
-        o.*,
-        COALESCE(p.payment_method, 'N/A') AS payment_method
-      FROM orders o
-      LEFT JOIN payments p ON o.id = p.order_id
-      WHERE o.status = 'paid'
-        AND ${ordersDateCondition}
-      ORDER BY o.created_at DESC
-    `);
+    SELECT
+      o.*,
+      p.created_at AS paid_at,  -- The time payment was made
+      COALESCE(p.payment_method, 'N/A') AS payment_method
+    FROM orders o
+    LEFT JOIN payments p ON o.id = p.order_id
+    WHERE o.status = 'paid'
+    ORDER BY p.created_at DESC  -- Sort by payment time, newest first
+  `);
         const orders = ordersRes.rows;
 
         // 2. Calculate daily sales by grouping paid orders by date.

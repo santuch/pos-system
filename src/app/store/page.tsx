@@ -25,6 +25,8 @@ type Order = {
     number_of_customers: number;
     total_price: number | string;
     payment_method?: string;
+    // paid_at will be provided by the API (payments.created_at)
+    paid_at?: string;
     created_at: string;
     status: string;
 };
@@ -108,7 +110,7 @@ export default function StoreDashboard() {
         const doc = new jsPDF();
         doc.text("Sales History", 14, 16);
         const tableColumn = [
-            "Date",
+            "Paid At",
             "Order ID",
             "Table",
             "Customers",
@@ -117,7 +119,7 @@ export default function StoreDashboard() {
             "Status",
         ];
         const tableRows = analytics.salesHistory.map((order) => [
-            new Date(order.created_at).toLocaleDateString(),
+            order.paid_at ? new Date(order.paid_at).toLocaleString() : "N/A",
             order.id,
             order.table_number,
             order.number_of_customers,
@@ -139,7 +141,7 @@ export default function StoreDashboard() {
             return;
         }
         const headers = [
-            "Date",
+            "Paid At",
             "Order ID",
             "Table",
             "Customers",
@@ -148,7 +150,7 @@ export default function StoreDashboard() {
             "Status",
         ];
         const rows = analytics.salesHistory.map((order) => [
-            new Date(order.created_at).toLocaleDateString(),
+            order.paid_at ? new Date(order.paid_at).toLocaleString() : "N/A",
             String(order.id),
             order.table_number,
             String(order.number_of_customers),
@@ -366,7 +368,7 @@ export default function StoreDashboard() {
                                                 Order ID
                                             </th>
                                             <th className="py-2 px-4 text-left">
-                                                Date
+                                                Paid At
                                             </th>
                                             <th className="py-2 px-4 text-left">
                                                 Table
@@ -406,9 +408,11 @@ export default function StoreDashboard() {
                                                             {order.id}
                                                         </td>
                                                         <td className="py-2 px-4">
-                                                            {new Date(
-                                                                order.created_at
-                                                            ).toLocaleDateString()}
+                                                            {order.paid_at
+                                                                ? new Date(
+                                                                      order.paid_at
+                                                                  ).toLocaleString()
+                                                                : "N/A"}
                                                         </td>
                                                         <td className="py-2 px-4">
                                                             {order.table_number}
