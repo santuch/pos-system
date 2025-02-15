@@ -1,6 +1,25 @@
+// app/api/orders/route.ts
+
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
+// GET handler: fetch all orders from the orders table
+export async function GET() {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM orders ORDER BY created_at DESC"
+        );
+        return NextResponse.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching orders:", error);
+        return NextResponse.json(
+            { error: "Failed to fetch orders" },
+            { status: 500 }
+        );
+    }
+}
+
+// POST handler: create a new order and update inventory if needed
 export async function POST(req: Request) {
     try {
         // Parse the incoming order data
@@ -26,10 +45,10 @@ export async function POST(req: Request) {
         try {
             await client.query("BEGIN");
 
-            // Insert the order into the orders table
+            // Insert the order with default status 'in-progress'
             const orderInsertQuery = `
-        INSERT INTO orders (table_number, number_of_customers, items, total_price)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO orders (table_number, number_of_customers, items, total_price, status)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING *;
       `;
             const orderValues = [
@@ -37,6 +56,7 @@ export async function POST(req: Request) {
                 numberOfCustomers,
                 JSON.stringify(items), // store order items as JSON
                 totalPrice,
+                "in-progress",
             ];
             const orderResult = await client.query(
                 orderInsertQuery,
@@ -44,17 +64,14 @@ export async function POST(req: Request) {
             );
             const order = orderResult.rows[0];
 
-            // Update inventory for each ordered menu item
-            // We assume each item in the "items" array has an "id" property for the menu item
+            // OPTIONAL: Update inventory for each ordered menu item
             for (const item of items) {
-                // Get the list of ingredients and their required amounts for the current menu item
                 const ingredientsResult = await client.query(
                     `SELECT ingredient_id, amount_required 
            FROM menu_item_ingredients 
            WHERE menu_item_id = $1`,
                     [item.id]
                 );
-                // For each ingredient used by the menu item, calculate the total deduction based on quantity ordered
                 for (const ing of ingredientsResult.rows) {
                     const deduction = ing.amount_required * item.quantity;
                     await client.query(
@@ -66,12 +83,10 @@ export async function POST(req: Request) {
                 }
             }
 
-            // Commit the transaction if all queries succeed
             await client.query("COMMIT");
             console.log("✅ Order saved successfully:", order);
             return NextResponse.json(order, { status: 201 });
         } catch (error) {
-            // Roll back if anything fails during the transaction
             await client.query("ROLLBACK");
             console.error("Transaction failed:", error);
             return NextResponse.json(

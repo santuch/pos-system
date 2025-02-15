@@ -32,6 +32,18 @@ const menuItems = [
         href: "/ingredient-management",
         icon: Truck,
     },
+    {
+        id: "cooker-dashboard",
+        name: "Cooker Dashboard",
+        href: "/order-dashboard/cooker",
+        icon: Receipt,
+    },
+    {
+        id: "payment-dashboard",
+        name: "Payment Dashboard",
+        href: "/order-dashboard/payment",
+        icon: Receipt,
+    },
     { id: "settings", name: "Settings", href: "/settings", icon: Settings },
 ];
 

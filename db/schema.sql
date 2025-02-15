@@ -29,13 +29,15 @@ CREATE TABLE IF NOT EXISTS menu_item_ingredients (
   PRIMARY KEY (menu_item_id, ingredient_id)
 );
 
--- Create orders table
+-- Create orders table with order status
 CREATE TABLE IF NOT EXISTS orders (
   id SERIAL PRIMARY KEY,
   table_number VARCHAR(50) NOT NULL,
   number_of_customers INTEGER NOT NULL,
   items JSON NOT NULL,
   total_price NUMERIC NOT NULL,
+  status VARCHAR(50) DEFAULT 'in-progress',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
