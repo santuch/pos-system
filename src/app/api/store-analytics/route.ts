@@ -1,14 +1,14 @@
+// app/api/store-analytics/route.ts
+
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import pool from "@/lib/db"; // adjust if your db connection is located elsewhere
+import pool from "@/lib/db";
 
 export async function GET(request: Request) {
-    // Extract "range" from the query params (day, week, month, year).
+    // Parse query parameters from the URL
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") || "day";
 
-    // Build date filtering condition.
-    // If you don't want to filter by date, set dateCondition = "1=1".
+    // Build a date filter condition for the current period.
     let dateCondition = "";
     if (range === "day") {
         dateCondition = "created_at >= NOW() - INTERVAL '1 day'";
@@ -18,27 +18,37 @@ export async function GET(request: Request) {
         dateCondition = "created_at >= NOW() - INTERVAL '30 days'";
     } else if (range === "year") {
         dateCondition = "created_at >= NOW() - INTERVAL '365 days'";
+    } else if (range === "custom") {
+        // For a custom date range, you must supply both 'start' and 'end'
+        const start = searchParams.get("start");
+        const end = searchParams.get("end");
+        if (start && end) {
+            dateCondition = `created_at >= '${start}' AND created_at <= '${end}'`;
+        } else {
+            // If custom but missing dates, fallback to no date filter.
+            dateCondition = "1=1";
+        }
     } else {
-        dateCondition = "1=1"; // no filtering
+        dateCondition = "1=1";
     }
 
     try {
-        // 1. Fetch all 'paid' orders within the date range, for reference or building metrics.
+        // 1. Fetch all 'paid' orders within the current period.
         const ordersRes = await pool.query(
             `SELECT * 
        FROM orders
-       WHERE status = 'paid' 
+       WHERE status = 'paid'
          AND ${dateCondition}
        ORDER BY created_at DESC`
         );
         const orders = ordersRes.rows;
 
-        // 2. Calculate daily sales (group orders by date, summing total_price).
+        // 2. Calculate daily sales by grouping paid orders by date.
         const dailySalesRes = await pool.query(
             `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date,
               SUM(total_price) as "totalSales"
        FROM orders
-       WHERE status = 'paid' 
+       WHERE status = 'paid'
          AND ${dateCondition}
        GROUP BY date
        ORDER BY date;`
@@ -48,10 +58,7 @@ export async function GET(request: Request) {
             totalSales: parseFloat(row.totalSales),
         }));
 
-        // 3. Top-selling items:
-        //    We expand the items JSON array using jsonb_array_elements,
-        //    then group by item name, summing up quantity and revenue.
-        //    Note: This assumes items::jsonb has "price" (numeric) and "quantity" (int).
+        // 3. Determine top-selling items by expanding the JSON array in "items".
         const topItemsRes = await pool.query(
             `SELECT item->>'name' as name,
               SUM((item->>'quantity')::int) as "totalQuantity",
@@ -70,26 +77,54 @@ export async function GET(request: Request) {
             totalRevenue: parseFloat(row.totalRevenue),
         }));
 
-        // 4. Sales history:
-        //    We'll simply return the 'paid' orders within the date range as your salesHistory.
+        // 4. Sales history: return the list of paid orders (could be paginated in a real app)
         const salesHistory = orders;
 
-        // 5. Total customers: sum of number_of_customers across paid orders in range.
+        // 5. Total customers: Sum the number_of_customers from paid orders.
         const totalCustomersRes = await pool.query(
             `SELECT COALESCE(SUM(number_of_customers), 0) as total
        FROM orders
        WHERE status = 'paid'
-         AND ${dateCondition};`
+         AND ${dateCondition}`
         );
         const totalCustomers = parseInt(totalCustomersRes.rows[0].total, 10);
 
-        // Return all analytics data in JSON format
+        // 6. Optional: Previous period analytics for comparison.
+        let previousPeriod = null;
+        if (["day", "week", "month", "year"].includes(range)) {
+            let prevDateCondition = "";
+            if (range === "day") {
+                prevDateCondition =
+                    "created_at < NOW() - INTERVAL '1 day' AND created_at >= NOW() - INTERVAL '2 day'";
+            } else if (range === "week") {
+                prevDateCondition =
+                    "created_at < NOW() - INTERVAL '7 days' AND created_at >= NOW() - INTERVAL '14 days'";
+            } else if (range === "month") {
+                prevDateCondition =
+                    "created_at < NOW() - INTERVAL '30 days' AND created_at >= NOW() - INTERVAL '60 days'";
+            } else if (range === "year") {
+                prevDateCondition =
+                    "created_at < NOW() - INTERVAL '365 days' AND created_at >= NOW() - INTERVAL '730 days'";
+            }
+            const prevSalesRes = await pool.query(
+                `SELECT COALESCE(SUM(total_price), 0) as totalSales, COUNT(*) as totalOrders
+         FROM orders
+         WHERE status = 'paid'
+           AND ${prevDateCondition}`
+            );
+            previousPeriod = {
+                totalSales: parseFloat(prevSalesRes.rows[0].totalSales),
+                totalOrders: parseInt(prevSalesRes.rows[0].totalOrders, 10),
+            };
+        }
+
         return NextResponse.json({
-            orders, // All paid orders in the date range
-            dailySales, // Summed by day
-            topItems, // Top 5 items by revenue
-            salesHistory, // Same as orders, but used specifically for history
+            orders,
+            dailySales,
+            topItems,
+            salesHistory,
             totalCustomers,
+            previousPeriod,
         });
     } catch (error) {
         console.error("Error fetching analytics:", error);

@@ -7,17 +7,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, Users, BarChart } from "lucide-react";
+import {
+    LineChart,
+    Line,
+    CartesianGrid,
+    XAxis,
+    YAxis,
+    Tooltip,
+    Legend,
+} from "recharts";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
-// Types for analytics
+// Type definitions for your data
 type Order = {
     id: number;
     table_number: string;
     number_of_customers: number;
-    items: any;
     total_price: number | string;
-    status: string;
-    created_at: string;
     payment_method?: string;
+    created_at: string;
+    status: string;
 };
 
 type DailySales = {
@@ -25,43 +35,40 @@ type DailySales = {
     totalSales: number;
 };
 
-type TopItem = {
-    name: string;
-    totalQuantity: number;
-    totalRevenue: number;
-};
-
 type AnalyticsData = {
     orders: Order[];
     dailySales: DailySales[];
-    topItems: TopItem[];
+    // If you have a topItems array, you can define it similarly
     salesHistory: Order[];
     totalCustomers: number;
+    // Optionally, previousPeriod for comparisons
+    previousPeriod?: {
+        totalSales: number;
+        totalOrders: number;
+    };
 };
 
-// Helper function to safely format numbers
-function formatNumber(val: number | string): string {
+// Helper function: safely parse numeric values
+function parsePrice(val: number | string): number {
     const num = parseFloat(String(val));
-    return isNaN(num) ? "0.00" : num.toFixed(2);
+    return isNaN(num) ? 0 : num;
 }
 
 export default function StoreDashboard() {
-    // Date range state
-    const [dateRange, setDateRange] = useState<
-        "day" | "week" | "month" | "year"
-    >("day");
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
 
+    // For demonstration, we fetch a fixed range "day".
+    // You can add range state and UI if you want day/week/month/year selection.
     useEffect(() => {
-        fetchAnalytics();
-    }, [dateRange]);
+        fetchAnalytics("day");
+    }, []);
 
-    const fetchAnalytics = async () => {
+    const fetchAnalytics = async (range: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/store-analytics?range=${dateRange}`);
-            const data: AnalyticsData = await res.json();
+            const res = await fetch(`/api/store-analytics?range=${range}`);
+            const data = await res.json();
             setAnalytics(data);
         } catch (error) {
             console.error("Error fetching analytics:", error);
@@ -70,12 +77,11 @@ export default function StoreDashboard() {
         }
     };
 
-    // Calculate key metrics based on analytics data
+    // Derived metrics
     const totalOrders = analytics?.orders.length || 0;
     const totalSales = analytics
         ? analytics.orders.reduce(
-              (acc, order) =>
-                  acc + parseFloat(String(order.total_price) || "0"),
+              (acc, order) => acc + parsePrice(order.total_price),
               0
           )
         : 0;
@@ -84,36 +90,92 @@ export default function StoreDashboard() {
     const avgValuePerCustomer =
         totalCustomers > 0 ? totalSales / totalCustomers : 0;
 
-    // Date Range Buttons UI
-    const renderRangeButtons = () => (
-        <div className="flex gap-2 mb-6">
-            {(["day", "week", "month", "year"] as const).map((range) => (
-                <Button
-                    key={range}
-                    variant={dateRange === range ? "default" : "outline"}
-                    onClick={() => setDateRange(range)}
-                >
-                    {range.charAt(0).toUpperCase() + range.slice(1)}
-                </Button>
-            ))}
-        </div>
-    );
+    // PDF Export
+    const exportPDF = () => {
+        if (!analytics) return;
+        const { salesHistory } = analytics;
+        if (!salesHistory || salesHistory.length === 0) {
+            alert("No sales history to export.");
+            return;
+        }
 
-    // Placeholder Sales Chart Component
-    const SalesChartPlaceholder = () => (
-        <Card className="p-4">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <BarChart className="h-5 w-5 text-blue-500" />
-                    Daily Sales
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="h-48 bg-gray-200 flex items-center justify-center text-sm text-gray-600">
-                    [Line Chart Placeholder]
-                </div>
-            </CardContent>
-        </Card>
+        const doc = new jsPDF();
+        doc.text("Sales History", 14, 16);
+
+        const tableColumn = [
+            "Date",
+            "Order ID",
+            "Table",
+            "Customers",
+            "Payment Method",
+            "Total (THB)",
+        ];
+        const tableRows = salesHistory.map((order) => [
+            new Date(order.created_at).toLocaleDateString(),
+            order.id,
+            order.table_number,
+            order.number_of_customers,
+            order.payment_method || "N/A",
+            parsePrice(order.total_price).toFixed(2),
+        ]);
+
+        (doc as any).autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 20,
+        });
+
+        doc.save("sales_history.pdf");
+    };
+
+    // CSV Export
+    const exportCSV = () => {
+        if (!analytics) return;
+        const { salesHistory } = analytics;
+        if (!salesHistory || salesHistory.length === 0) {
+            alert("No sales history to export.");
+            return;
+        }
+
+        const headers = [
+            "Date",
+            "Order ID",
+            "Table",
+            "Customers",
+            "Payment Method",
+            "Total (THB)",
+        ];
+        const rows = salesHistory.map((order) => [
+            new Date(order.created_at).toLocaleDateString(),
+            String(order.id),
+            order.table_number,
+            String(order.number_of_customers),
+            order.payment_method || "N/A",
+            parsePrice(order.total_price).toFixed(2),
+        ]);
+
+        const csvContent =
+            "data:text/csv;charset=utf-8," +
+            [headers, ...rows].map((e) => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "sales_history.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Recharts line chart for dailySales
+    const SalesLineChart = ({ data }: { data: DailySales[] }) => (
+        <LineChart width={600} height={300} data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="totalSales" stroke="#8884d8" />
+        </LineChart>
     );
 
     return (
@@ -121,7 +183,7 @@ export default function StoreDashboard() {
             <SideNav />
             <div className="flex-1 overflow-y-auto p-8">
                 <h1 className="text-3xl font-bold mb-6">Store Dashboard</h1>
-                {renderRangeButtons()}
+
                 {loading || !analytics ? (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {[...Array(3)].map((_, idx) => (
@@ -137,7 +199,7 @@ export default function StoreDashboard() {
                     </div>
                 ) : (
                     <>
-                        {/* Key Metrics Cards */}
+                        {/* Example Metrics */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <Card className="shadow">
                                 <CardHeader>
@@ -148,7 +210,7 @@ export default function StoreDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold">
-                                        {totalOrders}
+                                        {analytics.orders.length}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -161,7 +223,7 @@ export default function StoreDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold">
-                                        {formatNumber(totalSales)} THB
+                                        {totalSales.toFixed(2)} THB
                                     </p>
                                 </CardContent>
                             </Card>
@@ -174,7 +236,7 @@ export default function StoreDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold">
-                                        {formatNumber(averageOrderValue)} THB
+                                        {averageOrderValue.toFixed(2)} THB
                                     </p>
                                 </CardContent>
                             </Card>
@@ -187,7 +249,7 @@ export default function StoreDashboard() {
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold">
-                                        {totalCustomers}
+                                        {analytics.totalCustomers}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -195,72 +257,34 @@ export default function StoreDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <DollarSign className="h-5 w-5 text-red-500" />
-                                        Avg. Order Value per Customer
+                                        Avg. Value per Customer
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold">
-                                        {formatNumber(avgValuePerCustomer)} THB
+                                        {avgValuePerCustomer.toFixed(2)} THB
                                     </p>
                                 </CardContent>
                             </Card>
                         </div>
 
                         {/* Sales Chart */}
-                        <SalesChartPlaceholder />
-
-                        {/* Top-Selling Items */}
-                        <Card className="mt-8 shadow">
+                        <Card className="mb-8 shadow">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Badge variant="secondary">
-                                        Top-Selling Items
-                                    </Badge>
+                                    <BarChart className="h-5 w-5 text-blue-500" />
+                                    Daily Sales
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {analytics.topItems.length === 0 ? (
-                                    <p className="text-gray-500">
-                                        No data available.
-                                    </p>
+                                {analytics.dailySales.length > 0 ? (
+                                    <SalesLineChart
+                                        data={analytics.dailySales}
+                                    />
                                 ) : (
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b">
-                                                <th className="py-2 text-left">
-                                                    Item
-                                                </th>
-                                                <th className="py-2 text-right">
-                                                    Qty
-                                                </th>
-                                                <th className="py-2 text-right">
-                                                    Revenue (THB)
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {analytics.topItems.map(
-                                                (item, idx) => (
-                                                    <tr
-                                                        key={idx}
-                                                        className="border-b last:border-none"
-                                                    >
-                                                        <td className="py-1">
-                                                            {item.name}
-                                                        </td>
-                                                        <td className="py-1 text-right">
-                                                            {item.totalQuantity}
-                                                        </td>
-                                                        <td className="py-1 text-right">
-                                                            {formatNumber(
-                                                                item.totalRevenue
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            )}
-                                        </tbody>
-                                    </table>
+                                    <p className="text-gray-500">
+                                        No daily sales data.
+                                    </p>
                                 )}
                             </CardContent>
                         </Card>
@@ -323,15 +347,12 @@ export default function StoreDashboard() {
                                                             }
                                                         </td>
                                                         <td className="px-4 py-2">
-                                                            {order.payment_method
-                                                                ? order.payment_method
-                                                                : "N/A"}
+                                                            {order.payment_method ||
+                                                                "N/A"}
                                                         </td>
                                                         <td className="px-4 py-2 text-right">
-                                                            {parseFloat(
-                                                                String(
-                                                                    order.total_price
-                                                                )
+                                                            {parsePrice(
+                                                                order.total_price
                                                             ).toFixed(2)}
                                                         </td>
                                                     </tr>
@@ -342,18 +363,104 @@ export default function StoreDashboard() {
                                 )}
                             </CardContent>
                         </Card>
+
+                        {/* Export Buttons */}
+                        <div className="flex gap-4 mt-8">
+                            <Button
+                                onClick={() => exportCSV()}
+                                className="bg-green-500 hover:bg-green-600 text-white"
+                            >
+                                Export CSV
+                            </Button>
+                            <Button
+                                onClick={() =>
+                                    exportPDF()
+                                }
+                                className="bg-red-500 hover:bg-red-600 text-white"
+                            >
+                                Export PDF
+                            </Button>
+                        </div>
+
+                        <div className="mt-8">
+                            <Button
+                                onClick={() => fetchAnalytics("day")}
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                                Refresh (Day)
+                            </Button>
+                        </div>
                     </>
                 )}
-
-                <div className="mt-8">
-                    <Button
-                        onClick={fetchAnalytics}
-                        className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                        Refresh Dashboard
-                    </Button>
-                </div>
             </div>
         </div>
     );
 }
+
+// CSV Export function that uses local data
+function exportCSV(salesHistory: Order[]) {
+    if (!salesHistory || salesHistory.length === 0) {
+        alert("No sales history to export.");
+        return;
+    }
+    const headers = [
+        "Date",
+        "Order ID",
+        "Table",
+        "Customers",
+        "Payment Method",
+        "Total (THB)",
+    ];
+    const rows = salesHistory.map((order) => [
+        new Date(order.created_at).toLocaleDateString(),
+        String(order.id),
+        order.table_number,
+        String(order.number_of_customers),
+        order.payment_method || "N/A",
+        parsePrice(order.total_price).toFixed(2),
+    ]);
+    const csvContent =
+        "data:text/csv;charset=utf-8," +
+        [headers, ...rows].map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "sales_history.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// PDF Export function using jsPDF
+function exportPDF(salesHistory: Order[]) {
+    if (!salesHistory || salesHistory.length === 0) {
+        alert("No sales history to export.");
+        return;
+    }
+
+    const doc = new jsPDF();
+    doc.text("Sales History", 14, 16);
+    const tableColumn = [
+        "Date",
+        "Order ID",
+        "Table",
+        "Customers",
+        "Payment Method",
+        "Total (THB)",
+    ];
+    const tableRows = salesHistory.map((order) => [
+        new Date(order.created_at).toLocaleDateString(),
+        String(order.id),
+        order.table_number,
+        String(order.number_of_customers),
+        order.payment_method || "N/A",
+        parsePrice(order.total_price).toFixed(2),
+    ]);
+    (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 20,
+    });
+    doc.save("sales_history.pdf");
+}
+
