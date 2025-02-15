@@ -32,14 +32,16 @@ export async function GET(request: Request) {
     }
 
     try {
-        // 1. Fetch all 'paid' orders within the current period.
+        // 1. Fetch all 'paid' orders within the current period, including payment_method
         const ordersRes = await pool.query(`
-      SELECT *
-      FROM orders
-      WHERE status = 'paid'
-        AND ${dateCondition}
-      ORDER BY created_at DESC
-    `);
+    SELECT
+      o.*,
+      COALESCE(p.payment_method, 'N/A') AS payment_method
+    FROM orders o
+    LEFT JOIN payments p ON o.id = p.order_id
+    WHERE o.status = 'paid'
+    ORDER BY o.created_at DESC
+  `);
         const orders = ordersRes.rows;
 
         // 2. Calculate daily sales by grouping paid orders by date.
