@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS orders (
   total_price NUMERIC NOT NULL,
   status VARCHAR(50) DEFAULT 'in-progress',
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  stripe_session_id VARCHAR(255),
+  payment_intent_id VARCHAR(255),
+  customer_email VARCHAR(255),
+  customer_name VARCHAR(255),
+  shipping_address JSON,
+  payment_method VARCHAR(100),
 );
 

@@ -16,7 +16,7 @@ type Order = {
     table_number: string;
     number_of_customers: number;
     items: OrderItem[];
-    total_price: number | string;
+    total_price: number | string; // e.g., 43.14 if in THB
     status: string;
 };
 
@@ -43,7 +43,7 @@ export default function PaymentDashboard() {
         }
     };
 
-    // Update order status (e.g., marking as paid)
+    // Update order status (e.g., marking as paid or cancelled)
     const updateStatus = async (orderId: number, newStatus: string) => {
         try {
             const res = await fetch(`/api/orders/${orderId}`, {
@@ -58,6 +58,38 @@ export default function PaymentDashboard() {
             }
         } catch (error) {
             console.error("Error updating order status:", error);
+        }
+    };
+
+    // Handle Stripe payment for an order by creating a Checkout Session
+    const handleStripePayment = async (order: Order) => {
+        try {
+            // IMPORTANT: Ensure your DB stores the total price in THB as a decimal.
+            // Multiply by 100 to convert THB to satang.
+            const rawTotal = Number(order.total_price);
+            const amountInSatang = Math.round(rawTotal * 100);
+
+            console.log(
+                `Processing payment for order ${order.id}: raw total ${rawTotal} THB, converted to ${amountInSatang} satang.`
+            );
+
+            const res = await fetch("/api/create-checkout-session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    orderId: order.id,
+                    amount: amountInSatang, // this should now be an integer
+                    currency: "thb",
+                }),
+            });
+            const data = await res.json();
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                console.error("Failed to create checkout session", data);
+            }
+        } catch (error) {
+            console.error("Error processing Stripe payment:", error);
         }
     };
 
@@ -106,6 +138,11 @@ export default function PaymentDashboard() {
                                     }
                                 >
                                     Cancel Order
+                                </Button>
+                                <Button
+                                    onClick={() => handleStripePayment(order)}
+                                >
+                                    Pay with Stripe
                                 </Button>
                             </div>
                         </div>
