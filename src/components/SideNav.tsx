@@ -39,7 +39,7 @@ const menuItems = [
         href: "/order-dashboard/payment",
         icon: Receipt,
     },
-    { id: "store", name: "store", href: "/store", icon: Store },
+    { id: "store", name: "store", href: "/store", icon: Store                },
 ];
 
 export default function SideNav() {

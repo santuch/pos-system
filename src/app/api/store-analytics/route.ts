@@ -1,5 +1,3 @@
-// app/api/store-analytics/route.ts
-
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
@@ -23,6 +21,7 @@ export async function GET(request: Request) {
         const start = searchParams.get("start");
         const end = searchParams.get("end");
         if (start && end) {
+            // Properly quote these values
             dateCondition = `created_at >= '${start}' AND created_at <= '${end}'`;
         } else {
             // If custom but missing dates, fallback to no date filter.
@@ -34,59 +33,66 @@ export async function GET(request: Request) {
 
     try {
         // 1. Fetch all 'paid' orders within the current period.
-        const ordersRes = await pool.query(
-            `SELECT * 
-       FROM orders
-       WHERE status = 'paid'
-         AND ${dateCondition}
-       ORDER BY created_at DESC`
-        );
+        const ordersRes = await pool.query(`
+      SELECT *
+      FROM orders
+      WHERE status = 'paid'
+        AND ${dateCondition}
+      ORDER BY created_at DESC
+    `);
         const orders = ordersRes.rows;
 
         // 2. Calculate daily sales by grouping paid orders by date.
-        const dailySalesRes = await pool.query(
-            `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date,
-              SUM(total_price) as "totalSales"
-       FROM orders
-       WHERE status = 'paid'
-         AND ${dateCondition}
-       GROUP BY date
-       ORDER BY date;`
-        );
+        const dailySalesRes = await pool.query(`
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
+             SUM(total_price) AS "totalSales"
+      FROM orders
+      WHERE status = 'paid'
+        AND ${dateCondition}
+      GROUP BY date
+      ORDER BY date;
+    `);
         const dailySales = dailySalesRes.rows.map((row: any) => ({
             date: row.date,
             totalSales: parseFloat(row.totalSales),
         }));
 
-        // 3. Determine top-selling items by expanding the JSON array in "items".
-        const topItemsRes = await pool.query(
-            `SELECT item->>'name' as name,
-              SUM((item->>'quantity')::int) as "totalQuantity",
-              SUM(((item->>'quantity')::int * (item->>'price')::numeric)) as "totalRevenue"
-       FROM orders,
-            jsonb_array_elements(items::jsonb) as item
-       WHERE status = 'paid'
-         AND ${dateCondition}
-       GROUP BY name
-       ORDER BY "totalRevenue" DESC
-       LIMIT 5;`
-        );
+        // 3. Determine top-selling items using the normalized "order_items" table.
+        // Avoid prefixing the condition with a table alias when it is "1=1".
+        const topItemsDateCondition =
+            dateCondition === "1=1"
+                ? "1=1"
+                : dateCondition.replace("created_at", "o.created_at");
+
+        const topItemsRes = await pool.query(`
+      SELECT m.name,
+             SUM(oi.quantity) AS "totalQuantity",
+             SUM(oi.quantity * oi.price_at_order) AS "totalRevenue"
+      FROM orders o
+      JOIN order_items oi ON o.id = oi.order_id
+      JOIN menus m ON oi.menu_item_id = m.id
+      WHERE o.status = 'paid'
+        AND ${topItemsDateCondition}
+      GROUP BY m.name
+      ORDER BY "totalRevenue" DESC
+      LIMIT 5;
+    `);
         const topItems = topItemsRes.rows.map((row: any) => ({
             name: row.name,
             totalQuantity: parseInt(row.totalQuantity, 10),
             totalRevenue: parseFloat(row.totalRevenue),
         }));
 
-        // 4. Sales history: return the list of paid orders (could be paginated in a real app)
+        // 4. Sales history: return the list of paid orders (could be paginated in a real app).
         const salesHistory = orders;
 
         // 5. Total customers: Sum the number_of_customers from paid orders.
-        const totalCustomersRes = await pool.query(
-            `SELECT COALESCE(SUM(number_of_customers), 0) as total
-       FROM orders
-       WHERE status = 'paid'
-         AND ${dateCondition}`
-        );
+        const totalCustomersRes = await pool.query(`
+      SELECT COALESCE(SUM(number_of_customers), 0) AS total
+      FROM orders
+      WHERE status = 'paid'
+        AND ${dateCondition}
+    `);
         const totalCustomers = parseInt(totalCustomersRes.rows[0].total, 10);
 
         // 6. Optional: Previous period analytics for comparison.
@@ -106,12 +112,13 @@ export async function GET(request: Request) {
                 prevDateCondition =
                     "created_at < NOW() - INTERVAL '365 days' AND created_at >= NOW() - INTERVAL '730 days'";
             }
-            const prevSalesRes = await pool.query(
-                `SELECT COALESCE(SUM(total_price), 0) as totalSales, COUNT(*) as totalOrders
-         FROM orders
-         WHERE status = 'paid'
-           AND ${prevDateCondition}`
-            );
+            const prevSalesRes = await pool.query(`
+        SELECT COALESCE(SUM(total_price), 0) AS "totalSales",
+               COUNT(*) AS "totalOrders"
+        FROM orders
+        WHERE status = 'paid'
+          AND ${prevDateCondition}
+      `);
             previousPeriod = {
                 totalSales: parseFloat(prevSalesRes.rows[0].totalSales),
                 totalOrders: parseInt(prevSalesRes.rows[0].totalOrders, 10),
