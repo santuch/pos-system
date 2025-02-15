@@ -1,10 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Minus, Plus, X } from "lucide-react";
 
 type CartItem = {
     productId: number;
@@ -39,7 +48,6 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
     const [loading, setLoading] = useState(false);
 
-    // Calculate totals
     const subtotal = items.reduce(
         (acc, item) => acc + item.price * item.quantity,
         0
@@ -47,7 +55,6 @@ export default function OrderSummary({
     const tax = subtotal * 0.05;
     const total = subtotal + tax;
 
-    // Place Order Function
     const handlePlaceOrder = async () => {
         if (items.length === 0) {
             alert("Cart is empty. Please add items before placing an order.");
@@ -66,8 +73,6 @@ export default function OrderSummary({
             totalPrice: total,
         };
 
-        console.log("📢 Sending Order:", orderData);
-
         try {
             setLoading(true);
             const response = await fetch("/api/orders", {
@@ -77,104 +82,100 @@ export default function OrderSummary({
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error("❌ Failed to place order:", errorData);
-                alert("Failed to place order. Please try again.");
-                return;
+                throw new Error("Failed to place order");
             }
 
-            const result = await response.json();
-            console.log("✅ Order Placed Successfully:", result);
             alert("Order placed successfully!");
-            onPlaceOrder(); // Clear cart after successful order
+            onPlaceOrder();
         } catch (error) {
-            console.error("🚨 Error placing order:", error);
-            alert("Something went wrong. Please try again.");
+            console.error("Error placing order:", error);
+            alert("Failed to place order. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="p-4 border-l bg-white h-full flex flex-col">
-            <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+        <div className="flex flex-col h-full">
+            <div className="p-6 border-b">
+                <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
 
-            {/* Table Selection */}
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                    Select Table:
-                </label>
-                <select
-                    className="w-full p-2 border rounded-md"
-                    value={selectedTable}
-                    onChange={(e) => setSelectedTable(e.target.value)}
-                >
-                    <option value="Table 1">Table 1</option>
-                    <option value="Table 2">Table 2</option>
-                    <option value="Table 3">Table 3</option>
-                    <option value="Table 4">Table 4</option>
-                </select>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                            Table Number
+                        </label>
+                        <Select
+                            value={selectedTable}
+                            onValueChange={setSelectedTable}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a table" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {[1, 2, 3, 4].map((num) => (
+                                    <SelectItem
+                                        key={num}
+                                        value={`Table ${num}`}
+                                    >
+                                        Table {num}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                            Number of Customers
+                        </label>
+                        <Input
+                            type="number"
+                            min="1"
+                            value={numberOfCustomers}
+                            onChange={(e) =>
+                                setNumberOfCustomers(e.target.value)
+                            }
+                        />
+                    </div>
+                </div>
             </div>
 
-            {/* Number of Customers */}
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700">
-                    Number of Customers:
-                </label>
-                <Input
-                    type="number"
-                    placeholder="Enter number of customers..."
-                    value={numberOfCustomers}
-                    onChange={(e) => setNumberOfCustomers(e.target.value)}
-                />
-            </div>
-
-            <Separator className="my-2" />
-
-            {/* Order Items */}
-            <div className="space-y-4 flex-1 overflow-y-auto">
-                {items.length > 0 ? (
-                    items.map((item) => (
+            <ScrollArea className="flex-1 p-6">
+                <div className="space-y-4">
+                    {items.map((item) => (
                         <div
                             key={item.productId}
-                            className="flex items-center justify-between p-2 border rounded-lg bg-gray-50"
+                            className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                         >
-                            {/* Item Image */}
-                            <div className="w-16 h-16 flex-shrink-0">
+                            <div className="relative h-16 w-16 rounded-md overflow-hidden">
                                 <Image
-                                    src={item.image_url}
+                                    src={item.image_url || "/placeholder.svg"}
                                     alt={item.name}
-                                    width={64}
-                                    height={64}
-                                    className="rounded-md object-cover"
+                                    fill
+                                    className="object-cover"
                                 />
                             </div>
 
-                            {/* Product Details */}
-                            <div className="flex-1 px-3">
-                                <p className="font-medium text-sm">
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-medium truncate">
                                     {item.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
                                     ${Number(item.price).toFixed(2)}
                                 </p>
                             </div>
 
-                            {/* Quantity Controls */}
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     size="icon"
                                     className="h-8 w-8"
-                                    onClick={() =>
-                                        item.quantity === 1
-                                            ? onRemove(item.productId)
-                                            : onDecrement(item.productId)
-                                    }
+                                    onClick={() => onDecrement(item.productId)}
                                 >
-                                    -
+                                    <Minus className="h-4 w-4" />
                                 </Button>
-                                <span className="w-6 text-center">
+                                <span className="w-8 text-center">
                                     {item.quantity}
                                 </span>
                                 <Button
@@ -183,55 +184,56 @@ export default function OrderSummary({
                                     className="h-8 w-8"
                                     onClick={() => onIncrement(item.productId)}
                                 >
-                                    +
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-red-500 hover:text-red-600"
+                                    onClick={() => onRemove(item.productId)}
+                                >
+                                    <X className="h-4 w-4" />
                                 </Button>
                             </div>
-
-                            {/* Remove Button */}
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                className="ml-2 h-8 px-2"
-                                onClick={() => onRemove(item.productId)}
-                            >
-                                ✕
-                            </Button>
                         </div>
-                    ))
-                ) : (
-                    <p className="text-center text-gray-500">
-                        No items in the order.
-                    </p>
-                )}
+                    ))}
+
+                    {items.length === 0 && (
+                        <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                            <p className="text-lg">Your order is empty</p>
+                            <p className="text-sm">
+                                Add items from the menu to get started
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </ScrollArea>
+
+            <div className="p-6 border-t bg-gray-50 dark:bg-gray-800">
+                <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span>Tax (5%)</span>
+                        <span>${tax.toFixed(2)}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between text-lg font-semibold">
+                        <span>Total</span>
+                        <span>${total.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <Button
+                    className="w-full h-12 text-lg"
+                    onClick={handlePlaceOrder}
+                    disabled={loading || items.length === 0}
+                >
+                    {loading ? "Processing..." : "Place Order"}
+                </Button>
             </div>
-
-            <Separator className="my-4" />
-
-            {/* Total Calculation */}
-            <div className="text-sm space-y-2">
-                <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                    <span>Tax (5%):</span>
-                    <span>${tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-lg">
-                    <span>Total:</span>
-                    <span>${total.toFixed(2)}</span>
-                </div>
-            </div>
-
-            <Separator className="my-4" />
-
-            <Button
-                className="w-full mt-4 bg-green-500 hover:bg-green-600"
-                onClick={handlePlaceOrder}
-                disabled={loading}
-            >
-                {loading ? "Placing Order..." : "Place Order"}
-            </Button>
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,9 +9,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Plus, Package, Pencil, Trash } from "lucide-react";
 import SideNav from "@/components/SideNav";
 
-// Define the Ingredient type
 type Ingredient = {
     id: number;
     name: string;
@@ -21,48 +23,47 @@ type Ingredient = {
 };
 
 export default function IngredientManagement() {
-    // Main ingredient list and search/filter state
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [editingIngredient, setEditingIngredient] =
         useState<Ingredient | null>(null);
 
-    // Form fields for creating/updating an ingredient
     const [ingredientName, setIngredientName] = useState("");
     const [quantity, setQuantity] = useState("");
     const [unit, setUnit] = useState("");
     const [threshold, setThreshold] = useState("");
 
-    // State for Add Stock modal
     const [showAddStockModal, setShowAddStockModal] = useState(false);
     const [selectedIngredient, setSelectedIngredient] =
         useState<Ingredient | null>(null);
     const [addStockAmount, setAddStockAmount] = useState("");
 
-    // Fetch ingredients from the API when the component mounts
     useEffect(() => {
-        async function fetchIngredients() {
-            try {
-                const res = await fetch("/api/ingredients");
-                if (!res.ok) throw new Error("Failed to fetch ingredients");
-                const data = await res.json();
-                setIngredients(data);
-            } catch (error) {
-                console.error("Error fetching ingredients:", error);
-            }
-        }
         fetchIngredients();
     }, []);
 
-    // Refresh ingredient list
-    const refreshIngredients = async () => {
-        const res = await fetch("/api/ingredients");
-        const data = await res.json();
-        setIngredients(data);
+    const fetchIngredients = async () => {
+        try {
+            const res = await fetch("/api/ingredients");
+            if (!res.ok) throw new Error("Failed to fetch ingredients");
+            const data = await res.json();
+            setIngredients(data);
+        } catch (error) {
+            console.error("Error fetching ingredients:", error);
+        }
     };
 
-    // Open the modal to create a new ingredient
+    const refreshIngredients = async () => {
+        try {
+            const res = await fetch("/api/ingredients");
+            const data = await res.json();
+            setIngredients(data);
+        } catch (error) {
+            console.error("Error refreshing ingredients:", error);
+        }
+    };
+
     const openCreateIngredient = () => {
         setIngredientName("");
         setQuantity("");
@@ -72,7 +73,6 @@ export default function IngredientManagement() {
         setShowModal(true);
     };
 
-    // Open the modal to edit an existing ingredient
     const openEditIngredient = (ingredient: Ingredient) => {
         setEditingIngredient(ingredient);
         setIngredientName(ingredient.name);
@@ -82,7 +82,6 @@ export default function IngredientManagement() {
         setShowModal(true);
     };
 
-    // Handle saving (creating/updating) an ingredient
     const handleSaveIngredient = async () => {
         if (!ingredientName || !quantity || !unit || !threshold) {
             alert(
@@ -93,9 +92,9 @@ export default function IngredientManagement() {
 
         const newIngredient = {
             name: ingredientName,
-            quantity: parseFloat(quantity),
+            quantity: Number.parseFloat(quantity),
             unit,
-            threshold: parseFloat(threshold),
+            threshold: Number.parseFloat(threshold),
         };
 
         try {
@@ -134,7 +133,6 @@ export default function IngredientManagement() {
         }
     };
 
-    // Handle deleting an ingredient
     const handleDeleteIngredient = async (id: number) => {
         if (!confirm("Are you sure you want to delete this ingredient?"))
             return;
@@ -154,14 +152,12 @@ export default function IngredientManagement() {
         }
     };
 
-    // Open the Add Stock modal for a specific ingredient
-    const openAddStockModal = (ingredient: Ingredient) => {
+    const openAddStockModalForIngredient = (ingredient: Ingredient) => {
         setSelectedIngredient(ingredient);
         setAddStockAmount("");
         setShowAddStockModal(true);
     };
 
-    // Handle adding stock to the selected ingredient
     const handleAddStock = async () => {
         if (!addStockAmount || isNaN(Number(addStockAmount))) {
             alert("Please enter a valid number for stock amount.");
@@ -191,183 +187,236 @@ export default function IngredientManagement() {
         }
     };
 
-    // Filter ingredients based on search term
     const filteredIngredients = ingredients.filter((ing) =>
         ing.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <div className="flex h-screen">
+            {/* SideNav on the left */}
             <SideNav />
-            <div className="flex-1 overflow-y-auto p-4">
-                <h2 className="text-xl font-bold mb-4">
+
+            {/* Main content area */}
+            <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
+                <h1 className="text-2xl font-semibold mb-6">
                     Ingredient Management
-                </h2>
-                {/* Search and Add Ingredient button */}
-                <div className="flex justify-between mb-4">
-                    <Input
-                        placeholder="Search ingredients..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                </h1>
+
+                {/* Search and Create Ingredient */}
+                <div className="flex justify-between items-center mb-8">
+                    <div className="relative w-80">
+                        <Input
+                            placeholder="Search ingredients..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
+                        <svg
+                            className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                        </svg>
+                    </div>
                     <Button
-                        className="bg-green-500 hover:bg-green-600"
                         onClick={openCreateIngredient}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white"
                     >
+                        <Plus className="w-5 h-5 mr-2" />
                         Add Ingredient
                     </Button>
                 </div>
-                {/* Ingredient list */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                {/* Ingredient Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredIngredients.map((ingredient) => (
-                        <div
-                            key={ingredient.id}
-                            className="border rounded-lg p-4 flex flex-col"
-                        >
-                            <h3 className="font-semibold text-lg">
-                                {ingredient.name}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                                Quantity: {ingredient.quantity}{" "}
-                                {ingredient.unit}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                                Low Stock Threshold: {ingredient.threshold}
-                            </p>
-                            <div className="mt-2 flex gap-2">
+                        <Card key={ingredient.id} className="bg-white">
+                            <CardContent className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h3 className="text-lg font-semibold">
+                                        {ingredient.name}
+                                    </h3>
+                                    <span className="px-2 py-1 text-sm bg-emerald-50 text-emerald-700 rounded-md">
+                                        In Stock
+                                    </span>
+                                </div>
+                                <div className="space-y-2 text-gray-600">
+                                    <p>
+                                        Quantity: {ingredient.quantity}{" "}
+                                        {ingredient.unit}
+                                    </p>
+                                    <p>
+                                        Low Stock Threshold:{" "}
+                                        {ingredient.threshold}
+                                    </p>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="grid grid-cols-3 gap-2 p-4 bg-gray-50">
                                 <Button
-                                    variant="default"
+                                    variant="outline"
+                                    className="flex items-center justify-center"
                                     onClick={() =>
-                                        openAddStockModal(ingredient)
+                                        openAddStockModalForIngredient(
+                                            ingredient
+                                        )
                                     }
                                 >
+                                    <Package className="w-4 h-4 mr-2" />
                                     Add Stock
                                 </Button>
                                 <Button
                                     variant="outline"
+                                    className="flex items-center justify-center"
                                     onClick={() =>
                                         openEditIngredient(ingredient)
                                     }
                                 >
+                                    <Pencil className="w-4 h-4 mr-2" />
                                     Edit
                                 </Button>
                                 <Button
-                                    variant="destructive"
+                                    variant="outline"
+                                    className="flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50"
                                     onClick={() =>
                                         handleDeleteIngredient(ingredient.id)
                                     }
                                 >
+                                    <Trash className="w-4 h-4 mr-2" />
                                     Delete
                                 </Button>
-                            </div>
-                        </div>
+                            </CardFooter>
+                        </Card>
                     ))}
-                    {filteredIngredients.length === 0 && (
-                        <p className="text-center text-gray-500 col-span-full">
-                            No ingredients found.
-                        </p>
-                    )}
                 </div>
+                {filteredIngredients.length === 0 && (
+                    <p className="text-center text-gray-500 mt-8">
+                        No ingredients found.
+                    </p>
+                )}
 
-                {/* Modal for Adding/Editing an Ingredient */}
-                {showModal && (
-                    <Dialog open={showModal} onOpenChange={setShowModal}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    {editingIngredient
-                                        ? "Edit Ingredient"
-                                        : "Add New Ingredient"}
-                                </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Ingredient Name
-                                </label>
+                {/* Modal for Creating/Editing an Ingredient */}
+                <Dialog open={showModal} onOpenChange={setShowModal}>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {editingIngredient
+                                    ? "Edit Ingredient"
+                                    : "Add New Ingredient"}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">
+                                    Name
+                                </Label>
                                 <Input
-                                    placeholder="e.g., Meat"
+                                    id="name"
                                     value={ingredientName}
                                     onChange={(e) =>
                                         setIngredientName(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <label className="block text-sm font-medium text-gray-700">
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label
+                                    htmlFor="quantity"
+                                    className="text-right"
+                                >
                                     Quantity
-                                </label>
+                                </Label>
                                 <Input
+                                    id="quantity"
                                     type="number"
-                                    placeholder="e.g., 10"
                                     value={quantity}
                                     onChange={(e) =>
                                         setQuantity(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Unit of Measurement
-                                </label>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="unit" className="text-right">
+                                    Unit
+                                </Label>
                                 <Input
-                                    placeholder="e.g., kg, liters, pieces"
+                                    id="unit"
                                     value={unit}
                                     onChange={(e) => setUnit(e.target.value)}
+                                    className="col-span-3"
                                 />
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Low Stock Threshold
-                                </label>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label
+                                    htmlFor="threshold"
+                                    className="text-right"
+                                >
+                                    Threshold
+                                </Label>
                                 <Input
+                                    id="threshold"
                                     type="number"
-                                    placeholder="e.g., 5"
                                     value={threshold}
                                     onChange={(e) =>
                                         setThreshold(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <Button
-                                    className="w-full bg-blue-500 hover:bg-blue-600"
-                                    onClick={handleSaveIngredient}
-                                >
-                                    {editingIngredient
-                                        ? "Update Ingredient"
-                                        : "Save Ingredient"}
-                                </Button>
                             </div>
-                        </DialogContent>
-                    </Dialog>
-                )}
+                        </div>
+                        <Button
+                            onClick={handleSaveIngredient}
+                            className="w-full"
+                        >
+                            {editingIngredient
+                                ? "Update Ingredient"
+                                : "Save Ingredient"}
+                        </Button>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Modal for Adding Stock */}
-                {showAddStockModal && selectedIngredient && (
-                    <Dialog
-                        open={showAddStockModal}
-                        onOpenChange={setShowAddStockModal}
-                    >
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    Add Stock for {selectedIngredient.name}
-                                </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Amount to Add
-                                </label>
+                <Dialog
+                    open={showAddStockModal}
+                    onOpenChange={setShowAddStockModal}
+                >
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>
+                                Add Stock for {selectedIngredient?.name}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label
+                                    htmlFor="addStock"
+                                    className="text-right"
+                                >
+                                    Amount
+                                </Label>
                                 <Input
+                                    id="addStock"
                                     type="number"
-                                    placeholder="Enter stock amount to add"
                                     value={addStockAmount}
                                     onChange={(e) =>
                                         setAddStockAmount(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <Button
-                                    className="w-full bg-blue-500 hover:bg-blue-600"
-                                    onClick={handleAddStock}
-                                >
-                                    Confirm
-                                </Button>
                             </div>
-                        </DialogContent>
-                    </Dialog>
-                )}
+                        </div>
+                        <Button onClick={handleAddStock} className="w-full">
+                            Confirm
+                        </Button>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

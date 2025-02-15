@@ -4,37 +4,31 @@ import { stripe } from "@/lib/stripe";
 
 export async function POST(request: Request) {
     try {
+        // Retrieve origin from headers (fallback to localhost if not available)
         const headersList = headers();
-        const origin = (await headersList).get("origin");
-        const { orderId, amount, currency } = await request.json();
+        const origin =
+            (await headersList).get("origin") || "http://localhost:3000";
 
+        // Parse request body
+        const { orderId, amount, currency } = await request.json();
         if (!orderId || !amount) {
-            console.error("Missing required fields:", {
-                orderId,
-                amount,
-                currency,
-            });
             return NextResponse.json(
-                { error: "Missing required fields" },
+                { error: "Missing required fields: orderId or amount" },
                 { status: 400 }
             );
         }
 
-        // Here we assume `amount` is already in satang (integer).
-        console.log("Creating checkout session:", {
-            orderId,
-            amount,
-            currency,
-        });
-
+        // Create a Stripe Checkout Session with multiple payment methods enabled
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ["card", "promptpay"], // Add other supported methods as needed
+            payment_method_types: ["card", "promptpay"],
             line_items: [
                 {
                     price_data: {
-                        currency: currency || "thb", // Set currency to THB
-                        product_data: { name: `Order #${orderId}` },
-                        unit_amount: amount, // Amount in satang; no extra conversion here.
+                        currency: currency || "thb",
+                        product_data: {
+                            name: `Order #${orderId}`,
+                        },
+                        unit_amount: amount, // Amount in satang (if THB)
                     },
                     quantity: 1,
                 },
@@ -42,10 +36,11 @@ export async function POST(request: Request) {
             mode: "payment",
             success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/checkout/cancel`,
-            metadata: { orderId: String(orderId) },
+            metadata: {
+                orderId: String(orderId),
+            },
         });
 
-        console.log("Checkout session created:", session.id);
         return NextResponse.json({ url: session.url });
     } catch (error) {
         console.error("Error creating checkout session:", error);

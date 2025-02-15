@@ -10,6 +10,7 @@ import {
     Receipt,
     Settings,
     PlusCircle,
+    Store,
 } from "lucide-react";
 
 const menuItems = [
@@ -21,12 +22,6 @@ const menuItems = [
         icon: PlusCircle,
     },
     {
-        id: "table-services",
-        name: "Table Services",
-        href: "/table-services",
-        icon: UtensilsCrossed,
-    },
-    {
         id: "ingredient-management",
         name: "IngredientManagement",
         href: "/ingredient-management",
@@ -36,7 +31,7 @@ const menuItems = [
         id: "cooker-dashboard",
         name: "Cooker Dashboard",
         href: "/order-dashboard/cooker",
-        icon: Receipt,
+        icon: UtensilsCrossed,
     },
     {
         id: "payment-dashboard",
@@ -44,7 +39,7 @@ const menuItems = [
         href: "/order-dashboard/payment",
         icon: Receipt,
     },
-    { id: "settings", name: "Settings", href: "/settings", icon: Settings },
+    { id: "store", name: "store", href: "/store", icon: Store },
 ];
 
 export default function SideNav() {

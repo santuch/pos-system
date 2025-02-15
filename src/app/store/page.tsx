@@ -12,6 +12,7 @@ import {
     YAxis,
     Tooltip,
     Legend,
+    ResponsiveContainer,
 } from "recharts";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -52,7 +53,7 @@ type AnalyticsData = {
     error?: string;
 };
 
-// ---------- Helper ----------
+// ---------- Helper Function ----------
 function parsePrice(val: number | string): number {
     const num = parseFloat(String(val));
     return isNaN(num) ? 0 : num;
@@ -85,7 +86,7 @@ export default function StoreDashboard() {
         }
     };
 
-    // ---------- Derived metrics ----------
+    // ---------- Derived Metrics ----------
     const totalOrders = analytics?.orders?.length || 0;
     const totalSales = analytics?.orders
         ? analytics.orders.reduce(
@@ -98,16 +99,14 @@ export default function StoreDashboard() {
     const avgValuePerCustomer =
         totalCustomers > 0 ? totalSales / totalCustomers : 0;
 
-    // ---------- Export functions ----------
+    // ---------- Export Functions ----------
     const exportPDF = () => {
         if (!analytics?.salesHistory || analytics.salesHistory.length === 0) {
             alert("No sales history to export.");
             return;
         }
-
         const doc = new jsPDF();
         doc.text("Sales History", 14, 16);
-
         const tableColumn = [
             "Date",
             "Order ID",
@@ -126,13 +125,11 @@ export default function StoreDashboard() {
             parsePrice(order.total_price).toFixed(2),
             order.status,
         ]);
-
         (doc as any).autoTable({
             head: [tableColumn],
             body: tableRows,
             startY: 20,
         });
-
         doc.save("sales_history.pdf");
     };
 
@@ -141,7 +138,6 @@ export default function StoreDashboard() {
             alert("No sales history to export.");
             return;
         }
-
         const headers = [
             "Date",
             "Order ID",
@@ -160,7 +156,6 @@ export default function StoreDashboard() {
             parsePrice(order.total_price).toFixed(2),
             order.status,
         ]);
-
         const csvContent =
             "data:text/csv;charset=utf-8," +
             [headers, ...rows].map((e) => e.join(",")).join("\n");
@@ -175,14 +170,16 @@ export default function StoreDashboard() {
 
     // ---------- Daily Sales Chart Component ----------
     const DailySalesChart = ({ data }: { data: DailySales[] }) => (
-        <LineChart width={600} height={220} data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="totalSales" stroke="#8884d8" />
-        </LineChart>
+        <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="totalSales" stroke="#8884d8" />
+            </LineChart>
+        </ResponsiveContainer>
     );
 
     return (

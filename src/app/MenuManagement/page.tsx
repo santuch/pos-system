@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import type React from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -10,15 +11,31 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import Image from "next/image";
 import SideNav from "@/components/SideNav";
+import { Plus, Edit, Trash2, Search } from "lucide-react";
 
 type Ingredient = {
     name: string;
     amount: number;
 };
 
-type MenuItem = {
+export type MenuItem = {
     id: number;
     name: string;
     category: string;
@@ -41,23 +58,20 @@ export default function MenuManagement() {
     const [image, setImage] = useState("");
     const [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
-    const categories = [
-        "Breakfast",
-        "Soups",
-        "Pasta",
-        "Main Course",
-        "Drinks",
-        "Desserts",
-    ];
+    const categories = ["Main Dish", "Drinks", "Desserts"];
 
     useEffect(() => {
         async function fetchMenuItems() {
-            const response = await fetch("/api/menus");
-            if (response.ok) {
-                const data = await response.json();
-                setMenuItems(data);
-            } else {
-                console.error("Failed to fetch menu items");
+            try {
+                const response = await fetch("/api/menus");
+                if (response.ok) {
+                    const data = await response.json();
+                    setMenuItems(data);
+                } else {
+                    console.error("Failed to fetch menu items");
+                }
+            } catch (error) {
+                console.error("Error fetching menu items:", error);
             }
         }
         fetchMenuItems();
@@ -81,7 +95,9 @@ export default function MenuManagement() {
         setPrice(menu.price.toString());
         setDescription(menu.description);
         setImage(menu.image_url);
-        setIngredients(menu.ingredients || []);
+        const ing = menu.ingredients || [];
+        console.log("Editing menu, ingredients:", ing);
+        setIngredients(ing);
         setShowModal(true);
     };
 
@@ -94,20 +110,23 @@ export default function MenuManagement() {
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            setImage(data.filePath);
-        } else {
-            alert("Failed to upload image.");
+        try {
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setImage(data.filePath);
+            } else {
+                alert("Failed to upload image.");
+            }
+        } catch (error) {
+            console.error("Error uploading image:", error);
+            alert("Something went wrong during image upload.");
         }
     };
 
-    // --- Ingredient handlers ---
     const addIngredient = () => {
         setIngredients([...ingredients, { name: "", amount: 0 }]);
     };
@@ -129,7 +148,6 @@ export default function MenuManagement() {
         const updatedIngredients = ingredients.filter((_, i) => i !== index);
         setIngredients(updatedIngredients);
     };
-    // --- End Ingredient handlers ---
 
     const handleSaveMenu = async () => {
         if (!menuName || !price || !image) {
@@ -142,10 +160,10 @@ export default function MenuManagement() {
         const newMenuItem = {
             name: menuName,
             category,
-            price: parseFloat(price),
+            price: Number.parseFloat(price),
             description,
             image_url: image,
-            ingredients, // include the ingredient list
+            ingredients,
         };
 
         try {
@@ -183,7 +201,6 @@ export default function MenuManagement() {
             const response = await fetch(`/api/menus/${id}`, {
                 method: "DELETE",
             });
-
             if (response.ok) {
                 alert("Menu item deleted!");
                 refreshMenu();
@@ -197,32 +214,40 @@ export default function MenuManagement() {
     };
 
     const refreshMenu = async () => {
-        const response = await fetch("/api/menus");
-        const data = await response.json();
-        setMenuItems(data);
+        try {
+            const response = await fetch("/api/menus");
+            const data = await response.json();
+            setMenuItems(data);
+        } catch (error) {
+            console.error("Error refreshing menu items:", error);
+        }
     };
 
     return (
-        <div className="flex h-screen">
+        <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
             <SideNav />
-            <div className="flex-1 overflow-y-auto p-4">
-                <h2 className="text-xl font-bold mb-4">Menu Management</h2>
-                {/* Search & Create Button */}
-                <div className="flex justify-between mb-4">
-                    <Input
-                        placeholder="Search menu..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+            <div className="flex-1 overflow-y-auto p-8">
+                <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200">
+                    Menu Management
+                </h2>
+                <div className="flex justify-between mb-6">
+                    <div className="relative w-64">
+                        <Input
+                            placeholder="Search menu..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
+                        <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                    </div>
                     <Button
-                        className="bg-green-500 hover:bg-green-600"
+                        className="bg-green-500 hover:bg-green-600 text-white"
                         onClick={openCreateMenu}
                     >
-                        Create Menu
+                        <Plus className="mr-2 h-4 w-4" /> Create Menu
                     </Button>
                 </div>
-                {/* Menu Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {menuItems
                         .filter((item) =>
                             item.name
@@ -230,31 +255,35 @@ export default function MenuManagement() {
                                 .includes(searchTerm.toLowerCase())
                         )
                         .map((menu) => (
-                            <div
-                                key={menu.id}
-                                className="border rounded-lg p-2 flex flex-col items-center"
-                            >
-                                <Image
-                                    src={menu.image_url}
-                                    alt={menu.name}
-                                    width={100}
-                                    height={100}
-                                    className="object-contain rounded-md"
-                                />
-                                <div className="mt-2 text-center">
-                                    <h3 className="font-semibold">
+                            <Card key={menu.id} className="overflow-hidden">
+                                <CardHeader className="p-0">
+                                    <Image
+                                        src={
+                                            menu.image_url || "/placeholder.svg"
+                                        }
+                                        alt={menu.name}
+                                        width={300}
+                                        height={200}
+                                        className="w-full h-48 object-cover"
+                                    />
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                    <CardTitle className="text-xl mb-2">
                                         {menu.name}
-                                    </h3>
-                                    <p className="text-sm text-gray-500">
+                                    </CardTitle>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                        {menu.category}
+                                    </p>
+                                    <p className="text-lg font-semibold">
                                         ${Number(menu.price).toFixed(2)}
                                     </p>
-                                </div>
-                                <div className="flex gap-2 mt-2">
+                                </CardContent>
+                                <CardFooter className="bg-gray-50 dark:bg-gray-800 p-4 flex justify-between">
                                     <Button
                                         variant="outline"
                                         onClick={() => openEditMenu(menu)}
                                     >
-                                        Edit
+                                        <Edit className="mr-2 h-4 w-4" /> Edit
                                     </Button>
                                     <Button
                                         variant="destructive"
@@ -262,72 +291,108 @@ export default function MenuManagement() {
                                             handleDeleteMenu(menu.id)
                                         }
                                     >
+                                        <Trash2 className="mr-2 h-4 w-4" />{" "}
                                         Delete
                                     </Button>
-                                </div>
-                            </div>
+                                </CardFooter>
+                            </Card>
                         ))}
                 </div>
-                {/* Modal for Create/Edit */}
-                {showModal && (
-                    <Dialog open={showModal} onOpenChange={setShowModal}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    {editingItem
-                                        ? "Edit Menu Item"
-                                        : "Create New Menu Item"}
-                                </DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4">
+
+                <Dialog open={showModal} onOpenChange={setShowModal}>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {editingItem
+                                    ? "Edit Menu Item"
+                                    : "Create New Menu Item"}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="name" className="text-right">
+                                    Name
+                                </Label>
                                 <Input
-                                    placeholder="Menu Name"
+                                    id="name"
                                     value={menuName}
                                     onChange={(e) =>
                                         setMenuName(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <select
-                                    className="w-full p-2 border rounded-md"
-                                    value={category}
-                                    onChange={(e) =>
-                                        setCategory(e.target.value)
-                                    }
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label
+                                    htmlFor="category"
+                                    className="text-right"
                                 >
-                                    {categories.map((cat) => (
-                                        <option key={cat} value={cat}>
-                                            {cat}
-                                        </option>
-                                    ))}
-                                </select>
+                                    Category
+                                </Label>
+                                <Select
+                                    value={category}
+                                    onValueChange={setCategory}
+                                >
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((cat) => (
+                                            <SelectItem key={cat} value={cat}>
+                                                {cat}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="price" className="text-right">
+                                    Price
+                                </Label>
                                 <Input
+                                    id="price"
                                     type="number"
-                                    placeholder="Price ($)"
                                     value={price}
                                     onChange={(e) => setPrice(e.target.value)}
+                                    className="col-span-3"
                                 />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label
+                                    htmlFor="description"
+                                    className="text-right"
+                                >
+                                    Description
+                                </Label>
                                 <Textarea
-                                    placeholder="Description"
+                                    id="description"
                                     value={description}
                                     onChange={(e) =>
                                         setDescription(e.target.value)
                                     }
+                                    className="col-span-3"
                                 />
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                />
-                                {/* Ingredients Section */}
-                                <div className="border p-2 rounded-md">
-                                    <h3 className="font-bold mb-2">
-                                        Ingredients
-                                    </h3>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="image" className="text-right">
+                                    Image
+                                </Label>
+                                <div className="col-span-3">
+                                    <Input
+                                        id="image"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right">
+                                    Ingredients
+                                </Label>
+                                <div className="col-span-3 space-y-2">
                                     {ingredients.map((ingredient, index) => (
-                                        <div
-                                            key={index}
-                                            className="flex gap-2 mb-2"
-                                        >
+                                        <div key={index} className="flex gap-2">
                                             <Input
                                                 placeholder="Ingredient Name"
                                                 value={ingredient.name}
@@ -357,26 +422,27 @@ export default function MenuManagement() {
                                                     removeIngredient(index)
                                                 }
                                             >
-                                                Remove
+                                                <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     ))}
-                                    <Button onClick={addIngredient}>
-                                        Add Ingredient
+                                    <Button
+                                        onClick={addIngredient}
+                                        variant="outline"
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" /> Add
+                                        Ingredient
                                     </Button>
                                 </div>
-                                <Button
-                                    className="w-full bg-blue-500 hover:bg-blue-600"
-                                    onClick={handleSaveMenu}
-                                >
-                                    {editingItem
-                                        ? "Update Menu Item"
-                                        : "Save Menu Item"}
-                                </Button>
                             </div>
-                        </DialogContent>
-                    </Dialog>
-                )}
+                        </div>
+                        <Button onClick={handleSaveMenu} className="w-full">
+                            {editingItem
+                                ? "Update Menu Item"
+                                : "Save Menu Item"}
+                        </Button>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );
