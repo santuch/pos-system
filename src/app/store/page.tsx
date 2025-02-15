@@ -2,10 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import SideNav from "@/components/SideNav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { DollarSign, TrendingUp, Users, BarChart } from "lucide-react";
 import {
     LineChart,
@@ -18,8 +15,9 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import { Card } from "@/components/ui/card";
 
-// Type definitions for your data
+// ---------- Type definitions ----------
 type Order = {
     id: number;
     table_number: string;
@@ -35,20 +33,26 @@ type DailySales = {
     totalSales: number;
 };
 
+type TopItem = {
+    name: string;
+    totalQuantity: number;
+    totalRevenue: number;
+};
+
 type AnalyticsData = {
     orders: Order[];
     dailySales: DailySales[];
-    // If you have a topItems array, you can define it similarly
     salesHistory: Order[];
     totalCustomers: number;
-    // Optionally, previousPeriod for comparisons
+    topItems: TopItem[];
     previousPeriod?: {
         totalSales: number;
         totalOrders: number;
     };
+    error?: string;
 };
 
-// Helper function: safely parse numeric values
+// ---------- Helper ----------
 function parsePrice(val: number | string): number {
     const num = parseFloat(String(val));
     return isNaN(num) ? 0 : num;
@@ -57,29 +61,33 @@ function parsePrice(val: number | string): number {
 export default function StoreDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
+    const [range, setRange] = useState<"day" | "week" | "month">("day");
 
-    // For demonstration, we fetch a fixed range "day".
-    // You can add range state and UI if you want day/week/month/year selection.
     useEffect(() => {
-        fetchAnalytics("day");
-    }, []);
+        fetchAnalytics(range);
+    }, [range]);
 
-    const fetchAnalytics = async (range: string) => {
+    const fetchAnalytics = async (selectedRange: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/store-analytics?range=${range}`);
+            const res = await fetch(
+                `/api/store-analytics?range=${selectedRange}`
+            );
             const data = await res.json();
             setAnalytics(data);
         } catch (error) {
             console.error("Error fetching analytics:", error);
+            setAnalytics({
+                error: "Failed to fetch analytics",
+            } as AnalyticsData);
         } finally {
             setLoading(false);
         }
     };
 
-    // Derived metrics
-    const totalOrders = analytics?.orders.length || 0;
-    const totalSales = analytics
+    // ---------- Derived metrics ----------
+    const totalOrders = analytics?.orders?.length || 0;
+    const totalSales = analytics?.orders
         ? analytics.orders.reduce(
               (acc, order) => acc + parsePrice(order.total_price),
               0
@@ -90,11 +98,9 @@ export default function StoreDashboard() {
     const avgValuePerCustomer =
         totalCustomers > 0 ? totalSales / totalCustomers : 0;
 
-    // PDF Export
+    // ---------- Export functions ----------
     const exportPDF = () => {
-        if (!analytics) return;
-        const { salesHistory } = analytics;
-        if (!salesHistory || salesHistory.length === 0) {
+        if (!analytics?.salesHistory || analytics.salesHistory.length === 0) {
             alert("No sales history to export.");
             return;
         }
@@ -109,14 +115,16 @@ export default function StoreDashboard() {
             "Customers",
             "Payment Method",
             "Total (THB)",
+            "Status",
         ];
-        const tableRows = salesHistory.map((order) => [
+        const tableRows = analytics.salesHistory.map((order) => [
             new Date(order.created_at).toLocaleDateString(),
             order.id,
             order.table_number,
             order.number_of_customers,
             order.payment_method || "N/A",
             parsePrice(order.total_price).toFixed(2),
+            order.status,
         ]);
 
         (doc as any).autoTable({
@@ -128,11 +136,8 @@ export default function StoreDashboard() {
         doc.save("sales_history.pdf");
     };
 
-    // CSV Export
     const exportCSV = () => {
-        if (!analytics) return;
-        const { salesHistory } = analytics;
-        if (!salesHistory || salesHistory.length === 0) {
+        if (!analytics?.salesHistory || analytics.salesHistory.length === 0) {
             alert("No sales history to export.");
             return;
         }
@@ -144,14 +149,16 @@ export default function StoreDashboard() {
             "Customers",
             "Payment Method",
             "Total (THB)",
+            "Status",
         ];
-        const rows = salesHistory.map((order) => [
+        const rows = analytics.salesHistory.map((order) => [
             new Date(order.created_at).toLocaleDateString(),
             String(order.id),
             order.table_number,
             String(order.number_of_customers),
             order.payment_method || "N/A",
             parsePrice(order.total_price).toFixed(2),
+            order.status,
         ]);
 
         const csvContent =
@@ -166,9 +173,9 @@ export default function StoreDashboard() {
         document.body.removeChild(link);
     };
 
-    // Recharts line chart for dailySales
-    const SalesLineChart = ({ data }: { data: DailySales[] }) => (
-        <LineChart width={600} height={300} data={data}>
+    // ---------- Daily Sales Chart Component ----------
+    const DailySalesChart = ({ data }: { data: DailySales[] }) => (
+        <LineChart width={600} height={220} data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" />
             <YAxis />
@@ -179,288 +186,274 @@ export default function StoreDashboard() {
     );
 
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen bg-gray-50">
             <SideNav />
-            <div className="flex-1 overflow-y-auto p-8">
-                <h1 className="text-3xl font-bold mb-6">Store Dashboard</h1>
+            <main className="flex-1 overflow-y-auto p-6">
+                <header className="mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        Store Dashboard
+                    </h1>
+                    <p className="mt-2 text-gray-600">
+                        A comprehensive overview of your store's performance.
+                    </p>
+                </header>
 
-                {loading || !analytics ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {[...Array(3)].map((_, idx) => (
-                            <Card key={idx}>
-                                <CardHeader>
-                                    <Skeleton className="h-6 w-32" />
-                                </CardHeader>
-                                <CardContent>
-                                    <Skeleton className="h-8 w-full" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                {/* Range Tabs */}
+                <div className="flex space-x-4 mb-6">
+                    {["day", "week", "month"].map((r) => (
+                        <button
+                            key={r}
+                            onClick={() =>
+                                setRange(r as "day" | "week" | "month")
+                            }
+                            className={`px-4 py-2 border rounded ${
+                                range === r
+                                    ? "bg-gray-900 text-white"
+                                    : "bg-white text-gray-700 hover:bg-gray-100"
+                            }`}
+                        >
+                            {r.charAt(0).toUpperCase() + r.slice(1)}
+                        </button>
+                    ))}
+                </div>
+
+                {loading ? (
+                    <p className="text-gray-500">Loading data...</p>
+                ) : analytics && "error" in analytics ? (
+                    <p className="text-red-500">Error: {analytics.error}</p>
                 ) : (
                     <>
-                        {/* Example Metrics */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <Card className="shadow">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <TrendingUp className="h-5 w-5 text-blue-500" />
-                                        Total Orders
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-2xl font-bold">
-                                        {analytics.orders.length}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <DollarSign className="h-5 w-5 text-green-500" />
-                                        Total Sales
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-2xl font-bold">
-                                        {totalSales.toFixed(2)} THB
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <DollarSign className="h-5 w-5 text-purple-500" />
-                                        Avg. Order Value
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-2xl font-bold">
-                                        {averageOrderValue.toFixed(2)} THB
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Users className="h-5 w-5 text-orange-500" />
-                                        Total Customers
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-2xl font-bold">
-                                        {analytics.totalCustomers}
-                                    </p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <DollarSign className="h-5 w-5 text-red-500" />
-                                        Avg. Value per Customer
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-2xl font-bold">
-                                        {avgValuePerCustomer.toFixed(2)} THB
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        {/* Metrics Section */}
+                        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                            <div className="border rounded p-4 text-center">
+                                <div className="flex justify-center mb-2 text-gray-600">
+                                    <TrendingUp className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    Total Orders
+                                </p>
+                                <p className="text-xl font-semibold text-gray-900">
+                                    {totalOrders}
+                                </p>
+                            </div>
+                            <div className="border rounded p-4 text-center">
+                                <div className="flex justify-center mb-2 text-gray-600">
+                                    <DollarSign className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    Total Sales
+                                </p>
+                                <p className="text-xl font-semibold text-gray-900">
+                                    {totalSales.toFixed(2)} THB
+                                </p>
+                            </div>
+                            <div className="border rounded p-4 text-center">
+                                <div className="flex justify-center mb-2 text-gray-600">
+                                    <DollarSign className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    Avg. Order Value
+                                </p>
+                                <p className="text-xl font-semibold text-gray-900">
+                                    {averageOrderValue.toFixed(2)} THB
+                                </p>
+                            </div>
+                            <div className="border rounded p-4 text-center">
+                                <div className="flex justify-center mb-2 text-gray-600">
+                                    <Users className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    Total Customers
+                                </p>
+                                <p className="text-xl font-semibold text-gray-900">
+                                    {totalCustomers}
+                                </p>
+                            </div>
+                            <div className="border rounded p-4 text-center">
+                                <div className="flex justify-center mb-2 text-gray-600">
+                                    <DollarSign className="w-5 h-5" />
+                                </div>
+                                <p className="text-sm text-gray-500">
+                                    Avg. Value per Customer
+                                </p>
+                                <p className="text-xl font-semibold text-gray-900">
+                                    {avgValuePerCustomer.toFixed(2)} THB
+                                </p>
+                            </div>
+                        </section>
 
-                        {/* Sales Chart */}
-                        <Card className="mb-8 shadow">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <BarChart className="h-5 w-5 text-blue-500" />
-                                    Daily Sales
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {analytics.dailySales.length > 0 ? (
-                                    <SalesLineChart
-                                        data={analytics.dailySales}
-                                    />
+                        {/* Best Seller Items Section */}
+                        <section className="mb-8">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                                Best Seller Items
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {analytics?.topItems &&
+                                analytics.topItems.length > 0 ? (
+                                    analytics.topItems.map((item) => (
+                                        <div
+                                            key={item.name}
+                                            className="border rounded p-4"
+                                        >
+                                            <h3 className="text-md font-semibold">
+                                                {item.name}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                Total Quantity:{" "}
+                                                {item.totalQuantity}
+                                            </p>
+                                            <p className="text-sm text-gray-600">
+                                                Total Revenue:{" "}
+                                                {item.totalRevenue.toFixed(2)}{" "}
+                                                THB
+                                            </p>
+                                        </div>
+                                    ))
                                 ) : (
                                     <p className="text-gray-500">
-                                        No daily sales data.
+                                        No best seller items available.
                                     </p>
                                 )}
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </section>
 
-                        {/* Sales History */}
-                        <Card className="shadow">
-                            <CardHeader>
-                                <CardTitle>Sales History</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {analytics.salesHistory.length === 0 ? (
-                                    <p className="text-gray-500">
-                                        No sales history available.
-                                    </p>
-                                ) : (
-                                    <table className="w-full text-sm border-collapse">
-                                        <thead>
-                                            <tr className="border-b">
-                                                <th className="px-4 py-2 text-left">
-                                                    Date
-                                                </th>
-                                                <th className="px-4 py-2 text-left">
-                                                    Order ID
-                                                </th>
-                                                <th className="px-4 py-2 text-left">
-                                                    Table
-                                                </th>
-                                                <th className="px-4 py-2 text-right">
-                                                    Customers
-                                                </th>
-                                                <th className="px-4 py-2 text-left">
-                                                    Payment Method
-                                                </th>
-                                                <th className="px-4 py-2 text-right">
-                                                    Total (THB)
-                                                </th>
+                        {/* Daily Sales Chart Section */}
+                        <section className="mb-8">
+                            <Card className="shadow-lg rounded-lg">
+                                <div className="p-4 border-b flex items-center gap-2">
+                                    <BarChart className="h-5 w-5 text-blue-500" />
+                                    <h2 className="text-lg font-semibold text-gray-900">
+                                        Daily Sales
+                                    </h2>
+                                </div>
+                                <div className="p-4 flex justify-center">
+                                    {analytics?.dailySales?.length ? (
+                                        <DailySalesChart
+                                            data={analytics.dailySales}
+                                        />
+                                    ) : (
+                                        <p className="text-gray-500">
+                                            No daily sales data.
+                                        </p>
+                                    )}
+                                </div>
+                            </Card>
+                        </section>
+
+                        {/* Sales History Section */}
+                        <section className="mb-8">
+                            <div className="flex items-center justify-between mb-2">
+                                <h2 className="text-lg font-semibold text-gray-900">
+                                    Sales History
+                                </h2>
+                                <div className="space-x-2">
+                                    <Button
+                                        onClick={exportCSV}
+                                        className="bg-white text-gray-700 border hover:bg-gray-100"
+                                    >
+                                        CSV
+                                    </Button>
+                                    <Button
+                                        onClick={exportPDF}
+                                        className="bg-white text-gray-700 border hover:bg-gray-100"
+                                    >
+                                        PDF
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="border rounded">
+                                <table className="w-full text-sm text-gray-700">
+                                    <thead className="bg-gray-50 border-b">
+                                        <tr>
+                                            <th className="py-2 px-4 text-left">
+                                                Order ID
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Date
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Table
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Customers
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Payment Method
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Total (THB)
+                                            </th>
+                                            <th className="py-2 px-4 text-left">
+                                                Status
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {!analytics?.salesHistory?.length ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={7}
+                                                    className="py-4 px-4 text-center text-gray-500"
+                                                >
+                                                    No results.
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {analytics.salesHistory.map(
+                                        ) : (
+                                            analytics.salesHistory.map(
                                                 (order) => (
                                                     <tr
                                                         key={order.id}
-                                                        className="border-b last:border-none"
+                                                        className="border-b hover:bg-gray-50"
                                                     >
-                                                        <td className="px-4 py-2">
+                                                        <td className="py-2 px-4">
+                                                            {order.id}
+                                                        </td>
+                                                        <td className="py-2 px-4">
                                                             {new Date(
                                                                 order.created_at
                                                             ).toLocaleDateString()}
                                                         </td>
-                                                        <td className="px-4 py-2">
-                                                            {order.id}
-                                                        </td>
-                                                        <td className="px-4 py-2">
+                                                        <td className="py-2 px-4">
                                                             {order.table_number}
                                                         </td>
-                                                        <td className="px-4 py-2 text-right">
+                                                        <td className="py-2 px-4">
                                                             {
                                                                 order.number_of_customers
                                                             }
                                                         </td>
-                                                        <td className="px-4 py-2">
+                                                        <td className="py-2 px-4">
                                                             {order.payment_method ||
                                                                 "N/A"}
                                                         </td>
-                                                        <td className="px-4 py-2 text-right">
+                                                        <td className="py-2 px-4">
                                                             {parsePrice(
                                                                 order.total_price
                                                             ).toFixed(2)}
                                                         </td>
+                                                        <td className="py-2 px-4">
+                                                            {order.status}
+                                                        </td>
                                                     </tr>
                                                 )
-                                            )}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </CardContent>
-                        </Card>
+                                            )
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
 
-                        {/* Export Buttons */}
-                        <div className="flex gap-4 mt-8">
+                        {/* Refresh Button */}
+                        <div className="flex justify-end">
                             <Button
-                                onClick={() => exportCSV()}
-                                className="bg-green-500 hover:bg-green-600 text-white"
+                                onClick={() => fetchAnalytics(range)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
                             >
-                                Export CSV
-                            </Button>
-                            <Button
-                                onClick={() =>
-                                    exportPDF()
-                                }
-                                className="bg-red-500 hover:bg-red-600 text-white"
-                            >
-                                Export PDF
-                            </Button>
-                        </div>
-
-                        <div className="mt-8">
-                            <Button
-                                onClick={() => fetchAnalytics("day")}
-                                className="bg-blue-500 hover:bg-blue-600 text-white"
-                            >
-                                Refresh (Day)
+                                Refresh
                             </Button>
                         </div>
                     </>
                 )}
-            </div>
+            </main>
         </div>
     );
 }
-
-// CSV Export function that uses local data
-function exportCSV(salesHistory: Order[]) {
-    if (!salesHistory || salesHistory.length === 0) {
-        alert("No sales history to export.");
-        return;
-    }
-    const headers = [
-        "Date",
-        "Order ID",
-        "Table",
-        "Customers",
-        "Payment Method",
-        "Total (THB)",
-    ];
-    const rows = salesHistory.map((order) => [
-        new Date(order.created_at).toLocaleDateString(),
-        String(order.id),
-        order.table_number,
-        String(order.number_of_customers),
-        order.payment_method || "N/A",
-        parsePrice(order.total_price).toFixed(2),
-    ]);
-    const csvContent =
-        "data:text/csv;charset=utf-8," +
-        [headers, ...rows].map((e) => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "sales_history.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-// PDF Export function using jsPDF
-function exportPDF(salesHistory: Order[]) {
-    if (!salesHistory || salesHistory.length === 0) {
-        alert("No sales history to export.");
-        return;
-    }
-
-    const doc = new jsPDF();
-    doc.text("Sales History", 14, 16);
-    const tableColumn = [
-        "Date",
-        "Order ID",
-        "Table",
-        "Customers",
-        "Payment Method",
-        "Total (THB)",
-    ];
-    const tableRows = salesHistory.map((order) => [
-        new Date(order.created_at).toLocaleDateString(),
-        String(order.id),
-        order.table_number,
-        String(order.number_of_customers),
-        order.payment_method || "N/A",
-        parsePrice(order.total_price).toFixed(2),
-    ]);
-    (doc as any).autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: 20,
-    });
-    doc.save("sales_history.pdf");
-}
-
