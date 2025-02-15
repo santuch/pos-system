@@ -21,27 +21,32 @@ export async function GET(request: Request) {
         const start = searchParams.get("start");
         const end = searchParams.get("end");
         if (start && end) {
-            // Properly quote these values
             dateCondition = `created_at >= '${start}' AND created_at <= '${end}'`;
         } else {
-            // If custom but missing dates, fallback to no date filter.
             dateCondition = "1=1";
         }
     } else {
         dateCondition = "1=1";
     }
 
+    // For queries joining orders (aliased as o), qualify the "created_at" column.
+    const ordersDateCondition =
+        dateCondition === "1=1"
+            ? "1=1"
+            : dateCondition.replace("created_at", "o.created_at");
+
     try {
-        // 1. Fetch all 'paid' orders within the current period, including payment_method
+        // 1. Fetch all 'paid' orders within the current period, including payment_method.
         const ordersRes = await pool.query(`
-    SELECT
-      o.*,
-      COALESCE(p.payment_method, 'N/A') AS payment_method
-    FROM orders o
-    LEFT JOIN payments p ON o.id = p.order_id
-    WHERE o.status = 'paid'
-    ORDER BY o.created_at DESC
-  `);
+      SELECT
+        o.*,
+        COALESCE(p.payment_method, 'N/A') AS payment_method
+      FROM orders o
+      LEFT JOIN payments p ON o.id = p.order_id
+      WHERE o.status = 'paid'
+        AND ${ordersDateCondition}
+      ORDER BY o.created_at DESC
+    `);
         const orders = ordersRes.rows;
 
         // 2. Calculate daily sales by grouping paid orders by date.
@@ -60,7 +65,6 @@ export async function GET(request: Request) {
         }));
 
         // 3. Determine top-selling items using the normalized "order_items" table.
-        // Avoid prefixing the condition with a table alias when it is "1=1".
         const topItemsDateCondition =
             dateCondition === "1=1"
                 ? "1=1"
@@ -85,7 +89,7 @@ export async function GET(request: Request) {
             totalRevenue: parseFloat(row.totalRevenue),
         }));
 
-        // 4. Sales history: return the list of paid orders (could be paginated in a real app).
+        // 4. Sales history: return the list of paid orders.
         const salesHistory = orders;
 
         // 5. Total customers: Sum the number_of_customers from paid orders.
