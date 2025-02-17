@@ -3,14 +3,14 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-export const dynamic = "force-dynamic"; 
+export const dynamic = "force-dynamic";
 
 export async function PUT(
     request: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const { name, category, price, description, image_url, ingredients } =
             await request.json();
         const client = await pool.connect();

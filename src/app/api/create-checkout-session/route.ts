@@ -28,7 +28,7 @@ export async function POST(request: Request) {
                         product_data: {
                             name: `Order #${orderId}`,
                         },
-                        unit_amount: amount, // Amount in satang (if THB)
+                        unit_amount: amount,
                     },
                     quantity: 1,
                 },
