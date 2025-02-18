@@ -27,7 +27,6 @@ export async function GET(request: Request) {
             : dateCondition.replace("created_at", "o.created_at");
 
     try {
-        // 1. Fetch all 'paid' orders, using payments.created_at as "paid_at"
         const ordersRes = await pool.query(`
     SELECT
       o.*,
@@ -40,7 +39,6 @@ export async function GET(request: Request) {
   `);
         const orders = ordersRes.rows;
 
-        // 2. Calculate daily sales by grouping paid orders by date.
         const dailySalesRes = await pool.query(`
       SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS date,
              SUM(total_price) AS "totalSales"
@@ -55,7 +53,6 @@ export async function GET(request: Request) {
             totalSales: parseFloat(row.totalSales),
         }));
 
-        // 3. Determine top-selling items using the normalized "order_items" table.
         const topItemsDateCondition =
             dateCondition === "1=1"
                 ? "1=1"
@@ -71,7 +68,7 @@ export async function GET(request: Request) {
       WHERE o.status = 'paid'
         AND ${topItemsDateCondition}
       GROUP BY m.name
-      ORDER BY "totalRevenue" DESC
+      ORDER BY "totalQuantity" DESC
       LIMIT 5;
     `);
         const topItems = topItemsRes.rows.map((row: any) => ({
@@ -80,10 +77,8 @@ export async function GET(request: Request) {
             totalRevenue: parseFloat(row.totalRevenue),
         }));
 
-        // 4. Sales history: return the list of paid orders.
         const salesHistory = orders;
 
-        // 5. Total customers: Sum the number_of_customers from paid orders.
         const totalCustomersRes = await pool.query(`
       SELECT COALESCE(SUM(number_of_customers), 0) AS total
       FROM orders
@@ -92,7 +87,6 @@ export async function GET(request: Request) {
     `);
         const totalCustomers = parseInt(totalCustomersRes.rows[0].total, 10);
 
-        // 6. Optional: Previous period analytics for comparison.
         let previousPeriod = null;
         if (["day", "week", "month", "year"].includes(range)) {
             let prevDateCondition = "";

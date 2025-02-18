@@ -31,7 +31,7 @@ export async function PUT(
                 [id]
             );
 
-            // Process updated ingredients (if provided)
+            // Process updated ingredients
             if (ingredients && Array.isArray(ingredients)) {
                 for (const ingredient of ingredients) {
                     const existing = await client.query(
@@ -87,7 +87,6 @@ export async function DELETE(
 ) {
     try {
         const { id } = params;
-        // Assuming foreign keys with ON DELETE CASCADE handle the pivot table removal.
         await pool.query(`DELETE FROM menus WHERE id = $1`, [id]);
         return NextResponse.json(
             { message: "Menu deleted successfully" },
