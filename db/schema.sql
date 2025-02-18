@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS orders (
   number_of_customers INTEGER NOT NULL,
   total_price NUMERIC NOT NULL,
   status order_status DEFAULT 'in-progress',
-  shipping_address JSON,  -- Keep as JSON if you don't need to query address parts; consider normalizing if needed.
+  shipping_address JSON,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   menu_item_id INTEGER NOT NULL REFERENCES menus(id),
   quantity INTEGER NOT NULL,
-  price_at_order NUMERIC NOT NULL,  -- Price at the time of order (preserves historical data)
+  price_at_order NUMERIC NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
