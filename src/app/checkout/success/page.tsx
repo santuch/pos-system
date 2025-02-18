@@ -18,7 +18,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
         expand: ["payment_intent", "customer"],
     });
 
-    // If you want to show the user some details, you can get them from `session`
     const paymentStatus = session.payment_status;
     const amount_total = session.amount_total;
 

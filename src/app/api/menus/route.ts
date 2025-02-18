@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// GET: Fetch all menus with their associated ingredients
+// GET: Fetch all menus with associated ingredients
 export async function GET() {
     try {
         const query = `
@@ -51,7 +51,6 @@ export async function POST(request: Request) {
         const { name, category, price, description, image_url, ingredients } =
             body;
 
-        // Validate required fields
         if (!name || !price || !image_url) {
             return NextResponse.json(
                 { error: "Missing required fields: name, price, or image_url" },
@@ -63,7 +62,6 @@ export async function POST(request: Request) {
         try {
             await client.query("BEGIN");
 
-            // Insert new menu item
             const menuInsertQuery = `
         INSERT INTO menus (name, category, price, description, image_url)
         VALUES ($1, $2, $3, $4, $5)
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
                 for (const ing of ingredients) {
                     let ingredientId = ing.id;
                     if (!ingredientId) {
-                        // Try to find ingredient by name (case-insensitive)
+                        // find ingredient by name (case-insensitive)
                         const findRes = await client.query(
                             `SELECT id FROM ingredients WHERE name ILIKE $1 LIMIT 1`,
                             [ing.name]
@@ -91,7 +89,7 @@ export async function POST(request: Request) {
                         if (findRes.rows.length > 0) {
                             ingredientId = findRes.rows[0].id;
                         } else {
-                            // Insert new ingredient with default values (quantity 0, unit 'unit', threshold 0)
+                            // Insert new ingredient with default values
                             const insertIngRes = await client.query(
                                 `INSERT INTO ingredients (name, quantity, unit, threshold)
                  VALUES ($1, 0, 'unit', 0)
@@ -101,7 +99,6 @@ export async function POST(request: Request) {
                             ingredientId = insertIngRes.rows[0].id;
                         }
                     }
-                    // Insert pivot record for this menu item and ingredient
                     await client.query(
                         `INSERT INTO menu_item_ingredients (menu_item_id, ingredient_id, amount_required)
              VALUES ($1, $2, $3)`,
@@ -111,7 +108,6 @@ export async function POST(request: Request) {
             }
 
             await client.query("COMMIT");
-            // Optionally, you can re-run a query to fetch the full menu with ingredients
             return NextResponse.json(menu, { status: 201 });
         } catch (error) {
             await client.query("ROLLBACK");

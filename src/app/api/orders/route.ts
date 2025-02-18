@@ -47,7 +47,6 @@ export async function POST(request: Request) {
         const { tableNumber, numberOfCustomers, items, totalPrice } =
             await request.json();
 
-        // Validate required fields
         if (
             !tableNumber ||
             !numberOfCustomers ||
@@ -64,8 +63,6 @@ export async function POST(request: Request) {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
-
-            // Insert the order into the orders table with status 'in-progress'
             const orderInsertQuery = `
         INSERT INTO orders (table_number, number_of_customers, total_price, status)
         VALUES ($1, $2, $3, 'in-progress')
@@ -80,14 +77,13 @@ export async function POST(request: Request) {
 
             // Loop through each order item
             for (const item of items) {
-                // Insert the order item into the order_items table
                 const orderItemInsertQuery = `
           INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order)
           VALUES ($1, $2, $3, $4)
         `;
                 await client.query(orderItemInsertQuery, [
                     order.id,
-                    item.id, // menu_item_id
+                    item.id,
                     item.quantity,
                     item.price,
                 ]);
@@ -100,7 +96,6 @@ export async function POST(request: Request) {
         `;
                 const pivotResult = await client.query(pivotQuery, [item.id]);
 
-                // For each ingredient, reduce its stock by (amount_required * item.quantity)
                 for (const pivotRow of pivotResult.rows) {
                     const deduction =
                         Number(pivotRow.amount_required) * item.quantity;

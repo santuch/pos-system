@@ -61,7 +61,6 @@ export async function PATCH(
     try {
         const { id } = await params;
         const { amount } = await request.json();
-        // Update the ingredient by adding the given amount
         const result = await pool.query(
             `UPDATE ingredients
        SET quantity = quantity + $1, updated_at = NOW()

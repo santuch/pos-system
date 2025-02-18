@@ -37,13 +37,13 @@ export default function CookerDashboard() {
         fetchOrders();
     }, []);
 
-    // Fetch orders that need kitchen attention (e.g., "in-progress" and "ready")
+    // Fetch orders 
     const fetchOrders = async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/orders");
             const data = await res.json();
-            // Filter orders that are "in-progress" or "ready"
+            // Filter orders
             const filtered = data.filter(
                 (order: Order) =>
                     order.status === "in-progress" || order.status === "ready"
@@ -56,7 +56,7 @@ export default function CookerDashboard() {
         }
     };
 
-    // Update order status using PATCH endpoint
+    // Update order status using PATCH
     const updateStatus = async (orderId: number, newStatus: string) => {
         try {
             const res = await fetch(`/api/orders/${orderId}`, {

@@ -18,14 +18,12 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { Card } from "@/components/ui/card";
 
-// ---------- Type definitions ----------
 type Order = {
     id: number;
     table_number: string;
     number_of_customers: number;
     total_price: number | string;
     payment_method?: string;
-    // paid_at will be provided by the API (payments.created_at)
     paid_at?: string;
     created_at: string;
     status: string;

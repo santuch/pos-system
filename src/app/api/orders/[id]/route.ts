@@ -10,7 +10,6 @@ export async function PATCH(
     const { id } = await params;
     try {
         const { status } = await req.json();
-        // Validate the provided status
         const allowedStatuses = [
             "in-progress",
             "ready",

@@ -4,12 +4,10 @@ import { stripe } from "@/lib/stripe";
 
 export async function POST(request: Request) {
     try {
-        // Retrieve origin from headers (fallback to localhost if not available)
         const headersList = headers();
         const origin =
             (await headersList).get("origin") || "http://localhost:3000";
 
-        // Parse request body
         const { orderId, amount, currency } = await request.json();
         if (!orderId || !amount) {
             return NextResponse.json(
@@ -18,7 +16,6 @@ export async function POST(request: Request) {
             );
         }
 
-        // Create a Stripe Checkout Session with multiple payment methods enabled
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card", "promptpay"],
             line_items: [
