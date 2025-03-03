@@ -47,6 +47,7 @@ export default function OrderSummary({
     onPlaceOrder,
 }: OrderSummaryProps) {
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const subtotal = items.reduce(
         (acc, item) => acc + item.price * item.quantity,
@@ -56,49 +57,65 @@ export default function OrderSummary({
     const total = subtotal + tax;
 
     const handlePlaceOrder = async () => {
-        if (items.length === 0) {
-            alert("Cart is empty. Please add items before placing an order.");
-            return;
-        }
+      if (items.length === 0) {
+        setErrorMessage("Cart is empty. Please add items before placing an order.");
+        return;
+      }
 
-        const orderData = {
-            tableNumber: selectedTable,
-            numberOfCustomers: numberOfCustomers || "0",
-            items: items.map((item) => ({
-                id: item.productId,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-            })),
-            totalPrice: total,
-        };
+      const parsedNumberOfCustomers = Number(numberOfCustomers);
+      if (isNaN(parsedNumberOfCustomers) || parsedNumberOfCustomers < 1) {
+          setErrorMessage("Please enter a valid number of customers (at least 1).");
+          return;
+      }
 
-        try {
-            setLoading(true);
-            const response = await fetch("/api/orders", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(orderData),
-            });
 
-            if (!response.ok) {
-                throw new Error("Failed to place order");
-            }
+      const orderData = {
+          tableNumber: selectedTable,
+          numberOfCustomers: parsedNumberOfCustomers.toString(),
+          items: items.map((item) => ({
+              id: item.productId,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+          })),
+          totalPrice: total,
+      };
 
-            alert("Order placed successfully!");
-            onPlaceOrder();
-        } catch (error) {
-            console.error("Error placing order:", error);
-            alert("Failed to place order. Please try again.");
-        } finally {
-            setLoading(false);
-        }
-    };
+      try {
+          setLoading(true);
+          setErrorMessage(null); // Clear previous errors
+          const response = await fetch("/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            setErrorMessage(errorData.error || "Failed to place order. Please try again.");
+          } else {
+            onPlaceOrder(); // Clear cart on success
+          }
+
+      } catch (error) {
+          console.error("Error placing order:", error);
+          setErrorMessage("An unexpected error occurred. Please try again.");
+      } finally {
+          setLoading(false);
+      }
+  };
 
     return (
         <div className="flex flex-col h-full">
             <div className="p-6 border-b">
                 <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
+
+                {errorMessage && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <strong className="font-bold">Error: </strong>
+                        <span className="block sm:inline">{errorMessage}</span>
+                    </div>
+                )}
 
                 <div className="space-y-4">
                     <div className="space-y-2">
