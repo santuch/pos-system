@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS orders (
   number_of_customers INTEGER NOT NULL,
   total_price NUMERIC NOT NULL,
   status order_status DEFAULT 'in-progress',
-  shipping_address JSON,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -77,6 +76,34 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_status payment_status DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Create ENUM type for discount types
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'discount_type') THEN
+    CREATE TYPE discount_type AS ENUM ('percentage', 'fixed');
+  END IF;
+END
+$$;
+
+-- Create coupons table
+CREATE TABLE IF NOT EXISTS coupons (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(255) NOT NULL UNIQUE,
+    discount_type discount_type NOT NULL,
+    discount_value NUMERIC NOT NULL,
+    start_date TIMESTAMP,
+    expiration_date TIMESTAMP NOT NULL,
+    max_uses INTEGER,
+    times_used INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add coupon_id and discount_amount to orders table
+ALTER TABLE orders
+ADD COLUMN coupon_id INTEGER REFERENCES coupons(id) ON DELETE SET NULL,
+ADD COLUMN discount_amount NUMERIC;
 
 -- Create indexes to improve query performance
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);

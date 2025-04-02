@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -30,9 +31,26 @@ type Order = {
     status: string;
 };
 
+// Define a type for the Stripe payment payload.
+interface StripePaymentPayload {
+    orderId: number;
+    amount: number;
+    currency: string;
+    couponCode?: string;
+}
+
 export default function PaymentDashboard() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [couponCodes, setCouponCodes] = useState<{
+        [orderId: number]: string;
+    }>({});
+    const [discountedPrices, setDiscountedPrices] = useState<{
+        [orderId: number]: number;
+    }>({});
+    const [couponError, setCouponError] = useState<{
+        [orderId: number]: string;
+    }>({});
 
     useEffect(() => {
         fetchOrders();
@@ -71,23 +89,104 @@ export default function PaymentDashboard() {
         }
     };
 
-    const handleStripePayment = async (order: Order) => {
+    const handleApplyCoupon = async (order: Order) => {
         try {
             const rawTotal = Number(order.total_price);
             const amountInSatang = Math.round(rawTotal * 100);
+            const couponCode = couponCodes[order.id]?.trim() || "";
 
-            console.log(
-                `Processing payment for order ${order.id}: raw total ${rawTotal} THB, converted to ${amountInSatang} satang.`
-            );
+            if (couponCode) {
+                const res = await fetch("/api/create-checkout-session", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        orderId: order.id,
+                        amount: amountInSatang,
+                        currency: "thb",
+                        couponCode: couponCode,
+                    }),
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    // Coupon is invalid or expired: show error and clear discounted price
+                    setCouponError((prevErrors) => ({
+                        ...prevErrors,
+                        [order.id]: data.error,
+                    }));
+                    setDiscountedPrices((prevPrices) => {
+                        const newPrices = { ...prevPrices };
+                        delete newPrices[order.id];
+                        return newPrices;
+                    });
+                } else if (data.discountAmount !== undefined) {
+                    // Coupon is valid: apply discount
+                    setDiscountedPrices((prevPrices) => ({
+                        ...prevPrices,
+                        [order.id]: amountInSatang - data.discountAmount * 100,
+                    }));
+                    setCouponError((prevErrors) => ({
+                        ...prevErrors,
+                        [order.id]: "",
+                    }));
+                } else {
+                    console.error(
+                        "Invalid data format: missing discountAmount",
+                        data
+                    );
+                    setCouponError((prevErrors) => ({
+                        ...prevErrors,
+                        [order.id]: "Invalid coupon response",
+                    }));
+                    setDiscountedPrices((prevPrices) => ({
+                        ...prevPrices,
+                        [order.id]: amountInSatang,
+                    }));
+                }
+            } else {
+                // No coupon code: clear error and remove any discounted price
+                setCouponError((prevErrors) => ({
+                    ...prevErrors,
+                    [order.id]: "",
+                }));
+                setDiscountedPrices((prevPrices) => {
+                    const newPrices = { ...prevPrices };
+                    delete newPrices[order.id];
+                    return newPrices;
+                });
+            }
+        } catch (error) {
+            console.error("Error applying coupon:", error);
+            setCouponError((prevErrors) => ({
+                ...prevErrors,
+                [order.id]: "Error applying coupon",
+            }));
+        }
+    };
+
+    const handleStripePayment = async (order: Order) => {
+        try {
+            const originalPrice = Math.round(Number(order.total_price) * 100);
+            const couponCode = couponCodes[order.id]?.trim();
+            // Use discounted price only if a coupon code was used and discount exists,
+            // otherwise use the original price.
+            const amountToCharge =
+                couponCode && discountedPrices[order.id] !== undefined
+                    ? discountedPrices[order.id]
+                    : originalPrice;
+
+            // Build payload using the defined type.
+            const payload: StripePaymentPayload = {
+                orderId: order.id,
+                amount: amountToCharge,
+                currency: "thb",
+                ...(couponCode ? { couponCode } : {}),
+            };
 
             const res = await fetch("/api/create-checkout-session", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    amount: amountInSatang,
-                    currency: "thb",
-                }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (data.url) {
@@ -167,9 +266,53 @@ export default function PaymentDashboard() {
                                                 THB
                                             </span>
                                         </div>
+                                        {discountedPrices[order.id] !==
+                                            undefined &&
+                                            !couponError[order.id] && (
+                                                <div className="flex items-center font-bold text-green-500">
+                                                    <DollarSign className="mr-2 h-4 w-4" />
+                                                    <span>
+                                                        {Number(
+                                                            discountedPrices[
+                                                                order.id
+                                                            ] / 100
+                                                        ).toFixed(2)}{" "}
+                                                        THB (Discounted)
+                                                    </span>
+                                                </div>
+                                            )}
                                     </div>
                                 </CardContent>
                                 <CardFooter className="flex flex-col gap-2">
+                                    {/* Coupon Input and Apply Button */}
+                                    <div className="flex items-center space-x-2">
+                                        <Input
+                                            type="text"
+                                            placeholder="Coupon Code"
+                                            value={couponCodes[order.id] || ""}
+                                            onChange={(e) =>
+                                                setCouponCodes((prev) => ({
+                                                    ...prev,
+                                                    [order.id]: e.target.value,
+                                                }))
+                                            }
+                                            className="w-full"
+                                        />
+                                        <Button
+                                            variant="outline"
+                                            onClick={() =>
+                                                handleApplyCoupon(order)
+                                            }
+                                        >
+                                            Apply
+                                        </Button>
+                                    </div>
+                                    {/* Display Coupon Error */}
+                                    {couponError[order.id] && (
+                                        <p className="text-red-500 text-sm">
+                                            {couponError[order.id]}
+                                        </p>
+                                    )}
                                     <Button
                                         className="w-full"
                                         onClick={() =>

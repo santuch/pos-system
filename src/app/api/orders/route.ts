@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// GET: Fetch all orders, including order items (joined with menus)
-export async function GET() {
-    try {
-        const query = `
+// GET: Fetch all orders, including order items (joined with menus), with pagination
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '10');
+    const offset = (page - 1) * pageSize;
+
+    const query = `
       SELECT
         o.id,
         o.table_number,
@@ -29,16 +34,17 @@ export async function GET() {
       LEFT JOIN menus m ON oi.menu_item_id = m.id
       GROUP BY o.id
       ORDER BY o.created_at DESC
+      LIMIT $1 OFFSET $2
     `;
-        const result = await pool.query(query);
-        return NextResponse.json(result.rows);
-    } catch (error) {
-        console.error("Error fetching orders with items:", error);
-        return NextResponse.json(
-            { error: "Failed to fetch orders" },
-            { status: 500 }
-        );
-    }
+    const result = await pool.query(query, [pageSize, offset]);
+    return NextResponse.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching orders with items:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch orders" },
+      { status: 500 }
+    );
+  }
 }
 
 // POST: Place a new order and reduce ingredient stock accordingly
@@ -63,6 +69,8 @@ export async function POST(request: Request) {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
+
+            // Insert the order
             const orderInsertQuery = `
         INSERT INTO orders (table_number, number_of_customers, total_price, status)
         VALUES ($1, $2, $3, 'in-progress')
@@ -75,11 +83,12 @@ export async function POST(request: Request) {
             ]);
             const order = orderResult.rows[0];
 
-            // Loop through each order item
+            // Insert order items and update ingredient quantities in a single transaction
             for (const item of items) {
                 const orderItemInsertQuery = `
           INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order)
           VALUES ($1, $2, $3, $4)
+          RETURNING *
         `;
                 await client.query(orderItemInsertQuery, [
                     order.id,
@@ -87,26 +96,38 @@ export async function POST(request: Request) {
                     item.quantity,
                     item.price,
                 ]);
-
-                // Fetch the ingredients required for this menu item from the pivot table
-                const pivotQuery = `
-          SELECT ingredient_id, amount_required 
-          FROM menu_item_ingredients 
-          WHERE menu_item_id = $1
-        `;
-                const pivotResult = await client.query(pivotQuery, [item.id]);
-
-                for (const pivotRow of pivotResult.rows) {
-                    const deduction =
-                        Number(pivotRow.amount_required) * item.quantity;
-                    await client.query(
-                        `UPDATE ingredients 
-             SET quantity = quantity - $1, updated_at = NOW() 
-             WHERE id = $2`,
-                        [deduction, pivotRow.ingredient_id]
-                    );
-                }
             }
+
+            // Update ingredient quantities using a single SQL query
+            const updateIngredientsQuery = `
+        UPDATE ingredients
+        SET
+          quantity = CASE
+            WHEN ingredients.id IN (
+              SELECT mii.ingredient_id
+              FROM menu_item_ingredients mii
+              JOIN order_items oi ON mii.menu_item_id = oi.menu_item_id
+              WHERE oi.order_id = $1
+            )
+            THEN ingredients.quantity - (
+              SELECT SUM(mii.amount_required * oi.quantity)
+              FROM menu_item_ingredients mii
+              JOIN order_items oi ON mii.menu_item_id = oi.menu_item_id
+              WHERE oi.order_id = $1
+                AND mii.ingredient_id = ingredients.id
+            )
+            ELSE ingredients.quantity
+          END,
+          updated_at = NOW()
+        WHERE
+          ingredients.id IN (
+            SELECT mii.ingredient_id
+            FROM menu_item_ingredients mii
+            JOIN order_items oi ON mii.menu_item_id = oi.menu_item_id
+            WHERE oi.order_id = $1
+          )
+      `;
+            await client.query(updateIngredientsQuery, [order.id]);
 
             await client.query("COMMIT");
             return NextResponse.json(order, { status: 201 });

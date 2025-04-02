@@ -9,9 +9,9 @@ import {
     UtensilsCrossed,
     Truck,
     Receipt,
-    Settings,
     PlusCircle,
     Store,
+    Percent
 } from "lucide-react";
 
 const menuItems = [
@@ -40,6 +40,12 @@ const menuItems = [
         href: "/order-dashboard/payment",
         icon: Receipt,
     },
+    {
+        id: "coupon-management",
+        name: "Coupon Management",
+        href: "/coupon-management",
+        icon: Percent,
+    },
     { id: "store", name: "store", href: "/store", icon: Store },
 ];
 export default function SideNav() {
@@ -48,7 +54,7 @@ export default function SideNav() {
 
     return (
         <aside className="w-64 bg-white border-r h-screen p-4">
-            <h2 className="text-xl font-bold mb-4">POS</h2>
+            <h2 className="text-xl font-bold mb-4">POS System</h2>
             <nav className="space-y-2">
                 {menuItems.map((item) => (
                     <Link key={item.id} href={item.href}>

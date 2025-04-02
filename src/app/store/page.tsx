@@ -59,6 +59,15 @@ function parsePrice(val: number | string): number {
     return isNaN(num) ? 0 : num;
 }
 
+// Extend jsPDF to include the autoTable method.
+interface jsPDFWithAutoTable extends jsPDF {
+    autoTable: (options: {
+        head: string[][];
+        body: (string | number)[][];
+        startY: number;
+    }) => void;
+}
+
 export default function StoreDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
@@ -125,7 +134,8 @@ export default function StoreDashboard() {
             parsePrice(order.total_price).toFixed(2),
             order.status,
         ]);
-        (doc as any).autoTable({
+        // Cast doc to our extended interface to access autoTable without using any.
+        (doc as jsPDFWithAutoTable).autoTable({
             head: [tableColumn],
             body: tableRows,
             startY: 20,
@@ -191,7 +201,8 @@ export default function StoreDashboard() {
                         Store Dashboard
                     </h1>
                     <p className="mt-2 text-gray-600">
-                        A comprehensive overview of your store's performance.
+                        A comprehensive overview of your store&apos;s
+                        performance.
                     </p>
                 </header>
 
