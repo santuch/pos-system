@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useLowStockWarning } from "@/lib/hooks";
 import {
     Home,
     UtensilsCrossed,
     Truck,
     Receipt,
-    Settings,
     PlusCircle,
+    Store,
 } from "lucide-react";
 
 const menuItems = [
@@ -21,16 +22,28 @@ const menuItems = [
         icon: PlusCircle,
     },
     {
-        id: "table-services",
-        name: "Table Services",
-        href: "/table-services",
+        id: "ingredient-management",
+        name: "IngredientManagement",
+        href: "/ingredient-management",
+        icon: Truck,
+    },
+    {
+        id: "cooker-dashboard",
+        name: "Cooker Dashboard",
+        href: "/order-dashboard/cooker",
         icon: UtensilsCrossed,
     },
-    { id: "settings", name: "Settings", href: "/settings", icon: Settings },
+    {
+        id: "payment-dashboard",
+        name: "Payment Dashboard",
+        href: "/order-dashboard/payment",
+        icon: Receipt,
+    },
+    { id: "store", name: "store", href: "/store", icon: Store },
 ];
-
 export default function SideNav() {
     const pathname = usePathname();
+    const isLowStock = useLowStockWarning();
 
     return (
         <aside className="w-64 bg-white border-r h-screen p-4">
@@ -52,6 +65,18 @@ export default function SideNav() {
                     </Link>
                 ))}
             </nav>
+            {isLowStock && (
+                <div
+                    className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4"
+                    role="alert"
+                >
+                    <strong className="font-bold">Low Stock!</strong>
+                    <span className="block sm:inline">
+                        {" "}
+                        Some ingredients are running low.
+                    </span>
+                </div>
+            )}
         </aside>
     );
 }

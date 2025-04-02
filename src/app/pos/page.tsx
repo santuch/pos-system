@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import ProductGrid from "@/components/ProductGrid";
 import OrderSummary from "@/components/OrderSummary";
 import CategoryTabs from "@/components/CategoryTabs";
 import SideNav from "@/components/SideNav";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type CartItem = {
     productId: number;
@@ -15,7 +16,7 @@ type CartItem = {
 };
 
 export default function PosPage() {
-    const [activeCategory, setActiveCategory] = useState("all");
+    const [activeCategory, setActiveCategory] = useState("All");
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [selectedTable, setSelectedTable] = useState("Table 1");
     const [numberOfCustomers, setNumberOfCustomers] = useState("1");
@@ -65,23 +66,23 @@ export default function PosPage() {
     };
 
     return (
-        <div className="flex h-screen">
+        <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
             <SideNav />
             <div className="flex-1 flex flex-col">
-                <div className="border-b p-4">
+                <div className="bg-white dark:bg-gray-800 border-b p-4 shadow-sm">
                     <CategoryTabs
                         activeCategory={activeCategory}
                         onChange={setActiveCategory}
                     />
                 </div>
-                <div className="flex-1 overflow-y-auto p-4">
+                <ScrollArea className="flex-1">
                     <ProductGrid
                         activeCategory={activeCategory}
                         onAddToOrder={handleAddToOrder}
                     />
-                </div>
+                </ScrollArea>
             </div>
-            <div className="w-96 border-l bg-gray-50 p-4">
+            <div className="w-[400px] border-l bg-white dark:bg-gray-800 shadow-lg">
                 <OrderSummary
                     items={cartItems}
                     selectedTable={selectedTable}

@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { Card } from "@/components/ui/card";
+import { Plus } from "lucide-react";
 
 type Product = {
     id: number;
@@ -55,7 +52,7 @@ export default function ProductGrid({
     }, []);
 
     let filteredProducts =
-        activeCategory === "all"
+        activeCategory === "All"
             ? products
             : products.filter((p) => p.category === activeCategory);
 
@@ -66,83 +63,85 @@ export default function ProductGrid({
     }
 
     return (
-        <div className="p-4">
-            <div className="mb-4 flex items-center space-x-2">
+        <div className="p-6">
+            <div className="mb-6 relative">
                 <Input
-                    placeholder="Search by name..."
+                    placeholder="Search products..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-gray-50"
                 />
+                <Plus className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 {searchTerm && (
-                    <Button variant="ghost" onClick={() => setSearchTerm("")}>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1.5"
+                        onClick={() => setSearchTerm("")}
+                    >
                         Clear
                     </Button>
                 )}
             </div>
 
             {loading ? (
-                <p className="text-center text-gray-500">Loading products...</p>
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 gap-4">
                     {filteredProducts.map((product) => (
-                        <div
+                        <Card
                             key={product.id}
-                            className="border rounded-lg p-2 flex flex-col items-center"
+                            className="bg-white overflow-hidden flex flex-col h-full"
                         >
-                            <Image
-                                src={product.image_url}
-                                alt={product.name}
-                                width={100}
-                                height={100}
-                                unoptimized
-                                className="object-contain rounded-md"
-                            />
-
-                            <div className="mt-2 text-center">
-                                <h3 className="font-semibold">
-                                    {product.name}
-                                </h3>
-                                <p className="text-sm text-gray-500">
-                                    ${product.price.toFixed(2)}
-                                </p>
+                            <div className="relative w-full pt-[75%]">
+                                <Image
+                                    src={
+                                        product.image_url || "/placeholder.svg"
+                                    }
+                                    alt={product.name}
+                                    fill
+                                    className="object-cover absolute top-0 left-0"
+                                    priority
+                                />
                             </div>
-
-                            <Popover>
-                                <PopoverTrigger asChild>
+                            <div className="p-4">
+                                <h1 className="text-lg font-medium mb-2">
+                                    {product.name}
+                                </h1>
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="text-xl font-semibold text-green-500">
+                                        ${Number(product.price).toFixed(2)}
+                                    </span>
                                     <Button
-                                        variant="outline"
-                                        className="mt-2 text-sm"
+                                        className="bg-black text-white hover:bg-gray-800"
+                                        onClick={() =>
+                                            onAddToOrder({
+                                                productId: product.id,
+                                                name: product.name,
+                                                price: product.price,
+                                                image_url: product.image_url,
+                                                quantity: 1,
+                                            })
+                                        }
                                     >
-                                        Details
+                                        <Plus className="h-4 w-4 mr-1" />
+                                        Add to Order
                                     </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-64 text-sm">
-                                    {product.description}
-                                </PopoverContent>
-                            </Popover>
-
-                            <Button
-                                className="mt-auto w-full"
-                                onClick={() =>
-                                    onAddToOrder({
-                                        productId: product.id,
-                                        name: product.name,
-                                        price: product.price,
-                                        image_url: product.image_url,
-                                        quantity: 1, // 🔹 Fix: Ensure quantity is included
-                                    })
-                                }
-                            >
-                                Add to Order
-                            </Button>
-                        </div>
+                                </div>
+                            </div>
+                        </Card>
                     ))}
+                </div>
+            )}
 
-                    {filteredProducts.length === 0 && !loading && (
-                        <p className="col-span-full text-center text-gray-500">
-                            No products found.
-                        </p>
-                    )}
+            {filteredProducts.length === 0 && !loading && (
+                <div className="text-center text-gray-500 mt-12">
+                    <p className="text-lg">No products found</p>
+                    <p className="text-sm">
+                        Try adjusting your search or category
+                    </p>
                 </div>
             )}
         </div>
