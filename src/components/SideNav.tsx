@@ -9,7 +9,6 @@ import {
     UtensilsCrossed,
     Truck,
     Receipt,
-    Settings,
     PlusCircle,
     Store,
 } from "lucide-react";
@@ -67,9 +66,15 @@ export default function SideNav() {
                 ))}
             </nav>
             {isLowStock && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4" role="alert">
+                <div
+                    className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4"
+                    role="alert"
+                >
                     <strong className="font-bold">Low Stock!</strong>
-                    <span className="block sm:inline"> Some ingredients are running low.</span>
+                    <span className="block sm:inline">
+                        {" "}
+                        Some ingredients are running low.
+                    </span>
                 </div>
             )}
         </aside>
