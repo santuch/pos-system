@@ -54,20 +54,33 @@ export default function PaymentDashboard() {
         }
     };
 
-    const updateStatus = async (orderId: number, newStatus: string) => {
+    const handleCashPayment = async (order: Order) => {
         try {
-            const res = await fetch(`/api/orders/${orderId}`, {
+            // First update the order status to 'paid'
+            const statusRes = await fetch(`/api/orders/${order.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus }),
+                body: JSON.stringify({ status: "paid" }),
             });
-            if (res.ok) {
-                fetchOrders();
+            
+            // Then create a payment record for the cash payment
+            const paymentRes = await fetch("/api/payments", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    orderId: order.id,
+                    paymentMethod: "cash",
+                    paymentStatus: "succeeded"
+                }),
+            });
+            
+            if (statusRes.ok && paymentRes.ok) {
+                fetchOrders(); // Refresh the orders list
             } else {
-                console.error("Failed to update order status");
+                console.error("Failed to process cash payment");
             }
         } catch (error) {
-            console.error("Error updating order status:", error);
+            console.error("Error processing cash payment:", error);
         }
     };
 
@@ -184,7 +197,7 @@ export default function PaymentDashboard() {
                                             variant="outline"
                                             className="flex-1"
                                             onClick={() =>
-                                                updateStatus(order.id, "paid")
+                                            handleCashPayment(order)
                                             }
                                         >
                                             Mark as Paid
@@ -192,12 +205,20 @@ export default function PaymentDashboard() {
                                         <Button
                                             variant="outline"
                                             className="flex-1"
-                                            onClick={() =>
-                                                updateStatus(
-                                                    order.id,
-                                                    "cancelled"
-                                                )
-                                            }
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch(`/api/orders/${order.id}`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify({ status: "cancelled" }),
+                                                    });
+                                                    if (res.ok) {
+                                                        fetchOrders();
+                                                    }
+                                                } catch (error) {
+                                                    console.error("Error cancelling order:", error);
+                                                }
+                                            }}
                                         >
                                             Cancel Order
                                         </Button>
