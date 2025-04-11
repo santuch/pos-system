@@ -57,53 +57,58 @@ export default function OrderSummary({
     const total = subtotal + tax;
 
     const handlePlaceOrder = async () => {
-      if (items.length === 0) {
-        setErrorMessage("Cart is empty. Please add items before placing an order.");
-        return;
-      }
+        if (items.length === 0) {
+            setErrorMessage(
+                "Cart is empty. Please add items before placing an order."
+            );
+            return;
+        }
 
-      const parsedNumberOfCustomers = Number(numberOfCustomers);
-      if (isNaN(parsedNumberOfCustomers) || parsedNumberOfCustomers < 1) {
-          setErrorMessage("Please enter a valid number of customers (at least 1).");
-          return;
-      }
+        const parsedNumberOfCustomers = Number(numberOfCustomers);
+        if (isNaN(parsedNumberOfCustomers) || parsedNumberOfCustomers < 1) {
+            setErrorMessage(
+                "Please enter a valid number of customers (at least 1)."
+            );
+            return;
+        }
 
+        // Create an object that matches the backend expectation (snake_case)
+        const orderData = {
+            table_number: selectedTable,
+            number_of_customers: parsedNumberOfCustomers,
+            total_price: total,
+            order_items: items.map((item) => ({
+                menu_item_id: item.productId, // matching database column name
+                quantity: item.quantity,
+                price_at_order: item.price,
+            })),
+        };
 
-      const orderData = {
-          tableNumber: selectedTable,
-          numberOfCustomers: parsedNumberOfCustomers.toString(),
-          items: items.map((item) => ({
-              id: item.productId,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-          })),
-          totalPrice: total,
-      };
+        try {
+            setLoading(true);
+            setErrorMessage(null); // Clear previous errors
+            const response = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData),
+            });
 
-      try {
-          setLoading(true);
-          setErrorMessage(null); // Clear previous errors
-          const response = await fetch("/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData),
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            setErrorMessage(errorData.error || "Failed to place order. Please try again.");
-          } else {
-            onPlaceOrder(); // Clear cart on success
-          }
-
-      } catch (error) {
-          console.error("Error placing order:", error);
-          setErrorMessage("An unexpected error occurred. Please try again.");
-      } finally {
-          setLoading(false);
-      }
-  };
+            if (!response.ok) {
+                const errorData = await response.json();
+                setErrorMessage(
+                    errorData.error ||
+                        "Failed to place order. Please try again."
+                );
+            } else {
+                onPlaceOrder(); // Clear cart on success
+            }
+        } catch (error) {
+            console.error("Error placing order:", error);
+            setErrorMessage("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full">
@@ -111,7 +116,10 @@ export default function OrderSummary({
                 <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
 
                 {errorMessage && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <div
+                        className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+                        role="alert"
+                    >
                         <strong className="font-bold">Error: </strong>
                         <span className="block sm:inline">{errorMessage}</span>
                     </div>

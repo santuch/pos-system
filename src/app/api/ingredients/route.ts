@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// GET: Fetch all ingredients
+// GET: Fetch all ingredients, ordering by (quantity - threshold) ascending
 export async function GET() {
     try {
         const result = await pool.query(
-            `SELECT * FROM ingredients ORDER BY quantity-threshold ASC`
+            `SELECT * FROM ingredients ORDER BY (quantity - threshold) ASC`
         );
         return NextResponse.json(result.rows);
     } catch (error) {
@@ -21,7 +21,21 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
+
+        // Optionally, add input validation here
         const { name, quantity, unit, threshold } = body;
+        if (
+            !name ||
+            quantity === undefined ||
+            !unit ||
+            threshold === undefined
+        ) {
+            return NextResponse.json(
+                { error: "Missing required fields" },
+                { status: 400 }
+            );
+        }
+
         const result = await pool.query(
             `INSERT INTO ingredients (name, quantity, unit, threshold)
        VALUES ($1, $2, $3, $4) RETURNING *`,

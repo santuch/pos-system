@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
-// GET: Fetch all orders, including order items (joined with menus)
+// GET: Fetch all orders with nested order items (including menu item names)
 export async function GET() {
     try {
+        // Each order item object includes the id, name (from the menus table), price_at_order, and quantity.
         const query = `
       SELECT
         o.id,
@@ -41,18 +42,21 @@ export async function GET() {
     }
 }
 
-// POST: Place a new order and reduce ingredient stock accordingly
+// POST: Place a new order and update ingredient stock accordingly
 export async function POST(request: Request) {
     try {
-        const { tableNumber, numberOfCustomers, items, totalPrice } =
+        // Extract snake_case keys from the request body
+        const { table_number, number_of_customers, total_price, order_items } =
             await request.json();
 
+        // Validate required fields
         if (
-            !tableNumber ||
-            !numberOfCustomers ||
-            !items ||
-            items.length === 0 ||
-            !totalPrice
+            !table_number ||
+            !number_of_customers ||
+            !order_items ||
+            !Array.isArray(order_items) ||
+            order_items.length === 0 ||
+            total_price === undefined
         ) {
             return NextResponse.json(
                 { error: "Missing required fields" },
@@ -63,46 +67,51 @@ export async function POST(request: Request) {
         const client = await pool.connect();
         try {
             await client.query("BEGIN");
+
+            // Insert the new order into the orders table.
             const orderInsertQuery = `
-        INSERT INTO orders (table_number, number_of_customers, total_price, status)
-        VALUES ($1, $2, $3, 'in-progress')
-        RETURNING *
-      `;
+          INSERT INTO orders (table_number, number_of_customers, total_price, status)
+          VALUES ($1, $2, $3, 'in-progress')
+          RETURNING *
+        `;
             const orderResult = await client.query(orderInsertQuery, [
-                tableNumber,
-                numberOfCustomers,
-                totalPrice,
+                table_number,
+                number_of_customers,
+                total_price,
             ]);
             const order = orderResult.rows[0];
 
             // Loop through each order item
-            for (const item of items) {
+            for (const item of order_items) {
                 const orderItemInsertQuery = `
-          INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order)
-          VALUES ($1, $2, $3, $4)
-        `;
+            INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order)
+            VALUES ($1, $2, $3, $4)
+          `;
                 await client.query(orderItemInsertQuery, [
                     order.id,
-                    item.id,
+                    item.menu_item_id, // make sure the frontend sends menu_item_id
                     item.quantity,
-                    item.price,
+                    item.price_at_order, // ensure this key matches what you're sending from the frontend
                 ]);
 
                 // Fetch the ingredients required for this menu item from the pivot table
                 const pivotQuery = `
-          SELECT ingredient_id, amount_required 
-          FROM menu_item_ingredients 
-          WHERE menu_item_id = $1
-        `;
-                const pivotResult = await client.query(pivotQuery, [item.id]);
+            SELECT ingredient_id, amount_required 
+            FROM menu_item_ingredients 
+            WHERE menu_item_id = $1
+          `;
+                const pivotResult = await client.query(pivotQuery, [
+                    item.menu_item_id,
+                ]);
 
+                // Deduct ingredient stock for each required ingredient
                 for (const pivotRow of pivotResult.rows) {
                     const deduction =
                         Number(pivotRow.amount_required) * item.quantity;
                     await client.query(
                         `UPDATE ingredients 
-             SET quantity = quantity - $1, updated_at = NOW() 
-             WHERE id = $2`,
+               SET quantity = quantity - $1, updated_at = NOW() 
+               WHERE id = $2`,
                         [deduction, pivotRow.ingredient_id]
                     );
                 }
