@@ -9,7 +9,7 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const result = await pool.query(`SELECT * FROM menus WHERE id = $1`, [
             id,
         ]);

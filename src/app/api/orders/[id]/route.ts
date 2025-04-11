@@ -59,7 +59,7 @@ export async function PATCH(
 ) {
     try {
         // Get the order id from params
-        const { id } = params;
+        const { id } = await params;
         // Get new status from request body
         const { status } = await req.json();
         const allowedStatuses = [
