@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import SideNav from "@/components/SideNav";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, Users, BarChart } from "lucide-react";
+import { DollarSign, TrendingUp, Users, BarChart, Eye } from "lucide-react"; // Added Eye
 import {
     LineChart,
     Line,
@@ -17,6 +17,7 @@ import {
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { Card } from "@/components/ui/card";
+import BillModal from "@/components/BillModal"; // Import the new modal component
 
 type Order = {
     id: number;
@@ -72,6 +73,8 @@ export default function StoreDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [range, setRange] = useState<"day" | "week" | "month">("day");
+    const [isBillModalOpen, setIsBillModalOpen] = useState(false); // Added state for modal
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null); // Added state for selected order
 
     useEffect(() => {
         fetchAnalytics(range);
@@ -191,6 +194,12 @@ export default function StoreDashboard() {
             </LineChart>
         </ResponsiveContainer>
     );
+
+    // ---------- Modal Handler ----------
+    const handleViewBill = (orderId: number) => {
+        setSelectedOrderId(orderId);
+        setIsBillModalOpen(true);
+    };
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -394,13 +403,16 @@ export default function StoreDashboard() {
                                             <th className="py-2 px-4 text-left">
                                                 Status
                                             </th>
+                                            <th className="py-2 px-4 text-left"> {/* Added Actions Header */}
+                                                Actions
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {!analytics?.salesHistory?.length ? (
                                             <tr>
                                                 <td
-                                                    colSpan={7}
+                                                    colSpan={8} // Increased colspan
                                                     className="py-4 px-4 text-center text-gray-500"
                                                 >
                                                     No results.
@@ -443,6 +455,17 @@ export default function StoreDashboard() {
                                                         <td className="py-2 px-4">
                                                             {order.status}
                                                         </td>
+                                                        <td className="py-2 px-4"> {/* Added Actions Cell */}
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleViewBill(order.id)}
+                                                                className="flex items-center gap-1"
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                                View Bill
+                                                            </Button>
+                                                        </td>
                                                     </tr>
                                                 )
                                             )
@@ -464,6 +487,12 @@ export default function StoreDashboard() {
                     </>
                 )}
             </main>
+            {/* Render Bill Modal */}
+            <BillModal
+                orderId={selectedOrderId}
+                isOpen={isBillModalOpen}
+                onClose={() => setIsBillModalOpen(false)}
+            />
         </div>
     );
 }
