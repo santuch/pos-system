@@ -29,7 +29,7 @@ export async function GET() {
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menus m ON oi.menu_item_id = m.id
       GROUP BY o.id
-      ORDER BY o.created_at DESC
+      ORDER BY o.created_at ASC
     `;
         const result = await pool.query(query);
         return NextResponse.json(result.rows);
