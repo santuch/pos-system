@@ -3,7 +3,7 @@ import { PoolClient } from "pg";
 import pool from "@/lib/db";
 
 // Response helper functions
-export function successResponse(data: any, status = 200) {
+export function successResponse(data: unknown, status = 200) {
   return NextResponse.json(data, { status });
 }
 
@@ -40,7 +40,7 @@ export async function withTransaction<T>(
 
 // Validation helpers
 export function validateRequiredFields(
-  data: Record<string, any>,
+  data: Record<string, unknown>,
   requiredFields: string[]
 ): string | null {
   for (const field of requiredFields) {

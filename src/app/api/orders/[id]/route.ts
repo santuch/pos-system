@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server";
+
 import pool from "@/lib/db";
 import { 
     notFoundResponse, 
     badRequestResponse,
-    validateRequiredFields,
     handleApiRequest
 } from "@/lib/api-utils";
 
