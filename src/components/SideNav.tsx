@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useLowStockWarning } from "@/lib/hooks";
+import { useLowStockWarning, LowStockIngredient } from "@/lib/hooks";
+import { useState } from "react";
 import {
     Home,
     UtensilsCrossed,
@@ -41,9 +42,14 @@ const menuItems = [
     },
     { id: "store", name: "store", href: "/store", icon: Store },
 ];
+
 export default function SideNav() {
     const pathname = usePathname();
-    const isLowStock = useLowStockWarning();
+    const { items: lowStockItems, loading: lowStockLoading, error: lowStockError } = useLowStockWarning();
+    const [dismissed, setDismissed] = useState(false);
+
+    const getSeverityLabel = (severity: string) => severity === 'critical' ? 'Critical' : 'Low';
+    const getSeverityColor = (severity: string) => severity === 'critical' ? 'bg-red-600 text-white' : 'bg-yellow-400 text-black';
 
     return (
         <aside className="w-64 bg-white border-r h-screen p-4">
@@ -65,16 +71,47 @@ export default function SideNav() {
                     </Link>
                 ))}
             </nav>
-            {isLowStock && (
-                <div
-                    className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-4"
-                    role="alert"
-                >
-                    <strong className="font-bold">Low Stock!</strong>
-                    <span className="block sm:inline">
-                        {" "}
-                        Some ingredients are running low.
-                    </span>
+            {/* Low Stock Notification */}
+            {!dismissed && (
+                <div className="relative mt-4">
+                    {lowStockLoading && (
+                        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded flex items-center" role="status" aria-live="polite">
+                            <span className="loader mr-2" aria-label="Loading" /> Checking stock levels...
+                        </div>
+                    )}
+                    {lowStockError && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded flex items-center" role="alert" aria-live="assertive">
+                            <span className="font-bold mr-2">Stock Error:</span> {lowStockError}
+                        </div>
+                    )}
+                    {!lowStockLoading && !lowStockError && lowStockItems.length > 0 && (
+                        <div
+                            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                            role="alert"
+                            aria-live="assertive"
+                        >
+                            <button
+                                onClick={() => setDismissed(true)}
+                                className="absolute top-2 right-2 text-red-700 hover:text-red-900"
+                                aria-label="Dismiss low stock notification"
+                            >
+                                ×
+                            </button>
+                            <strong className="font-bold">Low Stock Alert!</strong>
+                            <ul className="mt-2 ml-2 space-y-1">
+                                {lowStockItems.map((item: LowStockIngredient) => (
+                                    <li key={item.name} className="flex items-center space-x-2">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getSeverityColor(item.severity)}`}>{getSeverityLabel(item.severity)}</span>
+                                        <span>{item.name}:</span>
+                                        <span>{item.quantity} / {item.threshold}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <Link href="/ingredient-management" className="inline-block mt-3 text-blue-700 underline font-medium hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
+                                View Details
+                            </Link>
+                        </div>
+                    )}
                 </div>
             )}
         </aside>

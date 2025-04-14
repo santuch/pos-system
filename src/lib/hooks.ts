@@ -5,29 +5,49 @@ type Ingredient = {
     threshold: number;
 };
 
+export type LowStockIngredient = {
+    name: string;
+    quantity: number;
+    threshold: number;
+    severity: 'low' | 'critical';
+};
+
 export function useLowStockWarning() {
-    const [isLowStock, setIsLowStock] = useState(false);
+    const [items, setItems] = useState<LowStockIngredient[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    async function checkIngredients() {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch("/api/ingredients");
+            if (!res.ok) {
+                setError("Failed to fetch ingredients");
+                setLoading(false);
+                return;
+            }
+            const data = await res.json();
+            // Expecting ingredient: { name, quantity, threshold }
+            const lowStockItems = (data as any[]).filter((ing) => Number(ing.quantity) < Number(ing.threshold)).map((ing) => ({
+                name: ing.name,
+                quantity: ing.quantity,
+                threshold: ing.threshold,
+                severity: Number(ing.quantity) < Number(ing.threshold) / 2 ? ('critical' as const) : ('low' as const),
+            }));
+            setItems(lowStockItems);
+        } catch (err) {
+            setError('Error checking ingredients');
+        }
+        setLoading(false);
+    }
 
     useEffect(() => {
-        async function checkIngredients() {
-            try {
-                const res = await fetch("/api/ingredients");
-                if (!res.ok) {
-                    console.error("Failed to fetch ingredients");
-                    return;
-                }
-                const data: Ingredient[] = await res.json();
-                const lowStock = data.some(
-                    (ing) => Number(ing.quantity) < Number(ing.threshold)
-                );
-                setIsLowStock(lowStock);
-            } catch (error) {
-                console.error("Error checking ingredients:", error);
-            }
-        }
-
         checkIngredients();
+        // Poll every 60 seconds
+        const interval = setInterval(checkIngredients, 60000);
+        return () => clearInterval(interval);
     }, []);
 
-    return isLowStock;
+    return { items, loading, error };
 }
