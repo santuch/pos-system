@@ -1,50 +1,58 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { 
+    notFoundResponse, 
+    badRequestResponse,
+    validateRequiredFields,
+    handleApiRequest
+} from "@/lib/api-utils";
 
 export const dynamic = "force-dynamic";
+
+// Allowed order statuses
+const ALLOWED_STATUSES = [
+    "in-progress",
+    "ready",
+    "waiting-for-payment",
+    "paid",
+    "cancelled",
+];
 
 export async function PATCH(
     req: Request,
     { params }: { params: { id: string } }
 ) {
-    const { id } = await params;
-    try {
-        const { status } = await req.json();
-        const allowedStatuses = [
-            "in-progress",
-            "ready",
-            "waiting-for-payment",
-            "paid",
-            "cancelled",
-        ];
-        if (!allowedStatuses.includes(status)) {
-            return NextResponse.json(
-                { error: "Invalid status" },
-                { status: 400 }
-            );
+    return handleApiRequest(async () => {
+        const { id } = params;
+        const body = await req.json();
+        
+        // Validate required fields
+        if (!body.status) {
+            return badRequestResponse('Missing required field: status');
         }
+        
+        const { status } = body;
+        
+        // Validate status is allowed
+        if (!ALLOWED_STATUSES.includes(status)) {
+            return badRequestResponse(`Invalid status. Must be one of: ${ALLOWED_STATUSES.join(', ')}`);
+        }
+        
         const result = await pool.query(
             `UPDATE orders 
-       SET status = $1, updated_at = NOW() 
-       WHERE id = $2 
-       RETURNING *;`,
+            SET status = $1, updated_at = NOW() 
+            WHERE id = $2 
+            RETURNING *;`,
             [status, id]
         );
+        
         if (result.rows.length === 0) {
-            return NextResponse.json(
-                { error: "Order not found" },
-                { status: 404 }
-            );
+            return notFoundResponse('Order');
         }
-        return NextResponse.json({
+        
+        return {
             message: "Order status updated",
-            order: result.rows[0],
-        });
-    } catch (error) {
-        console.error("Error updating order status:", error);
-        return NextResponse.json(
-            { error: "Failed to update order status" },
-            { status: 500 }
-        );
-    }
+            order: result.rows[0]
+        };
+    }, "Error updating order status");
 }
