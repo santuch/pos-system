@@ -349,20 +349,6 @@ export default function StoreDashboard() {
         }
     };
 
-    // ---------- Daily Sales Chart Component ----------
-    const DailySalesChart = ({ data }: { data: DailySales[] }) => (
-        <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="totalSales" stroke="#8884d8" />
-            </LineChart>
-        </ResponsiveContainer>
-    );
-
     return (
         <div className="flex h-screen bg-gray-100">
             <SideNav />
