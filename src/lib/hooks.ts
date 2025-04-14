@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react';
 
-type Ingredient = {
-    quantity: number;
-    threshold: number;
-};
-
 export type LowStockIngredient = {
     name: string;
     quantity: number;
@@ -29,14 +24,14 @@ export function useLowStockWarning() {
             }
             const data = await res.json();
             // Expecting ingredient: { name, quantity, threshold }
-            const lowStockItems = (data as any[]).filter((ing) => Number(ing.quantity) < Number(ing.threshold)).map((ing) => ({
+            const lowStockItems = (data as { name: string; quantity: number; threshold: number }[]).filter((ing) => Number(ing.quantity) < Number(ing.threshold)).map((ing) => ({
                 name: ing.name,
                 quantity: ing.quantity,
                 threshold: ing.threshold,
                 severity: Number(ing.quantity) < Number(ing.threshold) / 2 ? ('critical' as const) : ('low' as const),
             }));
             setItems(lowStockItems);
-        } catch (err) {
+        } catch {
             setError('Error checking ingredients');
         }
         setLoading(false);
@@ -49,5 +44,5 @@ export function useLowStockWarning() {
         return () => clearInterval(interval);
     }, []);
 
-    return { items, loading, error };
+    return { items, loading, error, checkIngredients };
 }

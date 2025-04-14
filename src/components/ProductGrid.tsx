@@ -34,6 +34,7 @@ export default function ProductGrid({
     const [searchTerm, setSearchTerm] = useState("");
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchProducts() {
@@ -42,8 +43,8 @@ export default function ProductGrid({
                 if (!res.ok) throw new Error("Failed to fetch products");
                 const data = await res.json();
                 setProducts(data);
-            } catch (error) {
-                console.error("Error fetching products:", error);
+            } catch {
+                setError("Error fetching products. Please try again later.");
             } finally {
                 setLoading(false);
             }
@@ -70,14 +71,16 @@ export default function ProductGrid({
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 bg-gray-50"
+                    aria-label="Search products"
                 />
-                <Plus className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                <svg className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true" aria-label="Search icon"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                 {searchTerm && (
                     <Button
                         variant="ghost"
                         size="sm"
                         className="absolute right-2 top-1.5"
                         onClick={() => setSearchTerm("")}
+                        aria-label="Clear search"
                     >
                         Clear
                     </Button>
@@ -85,8 +88,16 @@ export default function ProductGrid({
             </div>
 
             {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                        <div key={idx} className="animate-pulse bg-gray-200 rounded-lg h-60" aria-hidden="true"></div>
+                    ))}
+                </div>
+            ) : error ? (
                 <div className="flex items-center justify-center h-64">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert" aria-live="assertive">
+                        <strong className="font-bold">Error:</strong> {error}
+                    </div>
                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 gap-4">
@@ -94,6 +105,8 @@ export default function ProductGrid({
                         <Card
                             key={product.id}
                             className="bg-white overflow-hidden flex flex-col h-full"
+                            tabIndex={0}
+                            aria-label={`Product: ${product.name}`}
                         >
                             <div className="relative w-full pt-[75%]">
                                 <Image
@@ -112,7 +125,7 @@ export default function ProductGrid({
                                 </h1>
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="text-xl font-semibold text-green-500">
-                                        ${Number(product.price).toFixed(2)}
+                                        {product.price.toLocaleString("th-TH", { style: "currency", currency: "THB" })}
                                     </span>
                                     <Button
                                         className="bg-black text-white hover:bg-gray-800"
@@ -125,6 +138,7 @@ export default function ProductGrid({
                                                 quantity: 1,
                                             })
                                         }
+                                        aria-label={`Add ${product.name} to order`}
                                     >
                                         <Plus className="h-4 w-4 mr-1" />
                                         Add to Order
@@ -136,7 +150,7 @@ export default function ProductGrid({
                 </div>
             )}
 
-            {filteredProducts.length === 0 && !loading && (
+            {filteredProducts.length === 0 && !loading && !error && (
                 <div className="text-center text-gray-500 mt-12">
                     <p className="text-lg">No products found</p>
                     <p className="text-sm">
