@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         const body = await request.json();
@@ -47,8 +48,9 @@ export async function PUT(
 // DELETE: Remove an ingredient
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         
@@ -87,8 +89,9 @@ export async function DELETE(
 // PATCH: Update stock (add stock) for an ingredient
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         const body = await request.json();
@@ -126,8 +129,9 @@ export async function PATCH(
 // GET: Retrieve a single ingredient
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         

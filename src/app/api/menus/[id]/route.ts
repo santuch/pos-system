@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         const body = await request.json();
@@ -111,8 +112,9 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         
@@ -146,8 +148,9 @@ export async function DELETE(
 
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         

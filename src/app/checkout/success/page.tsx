@@ -1,14 +1,13 @@
-import React from "react";
 import { redirect } from "next/navigation";
 import { stripe } from "@/lib/stripe";
 import { CheckCircle2 } from "lucide-react";
 
 interface SuccessPageProps {
-    searchParams: { session_id?: string };
+    searchParams: Promise<{ session_id?: string }>;
 }
 
 export default async function SuccessPage({ searchParams }: SuccessPageProps) {
-    const { session_id } = await searchParams;
+    const { session_id } = await (await searchParams);
 
     if (!session_id) {
         return redirect("/");

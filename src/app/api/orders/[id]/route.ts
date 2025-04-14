@@ -1,4 +1,3 @@
-
 import pool from "@/lib/db";
 import { 
     notFoundResponse, 
@@ -19,8 +18,9 @@ const ALLOWED_STATUSES = [
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
-) {
+    context: { params: Promise<{ id: string }> }
+): Promise<Response> {
+    const params = await context.params;
     return handleApiRequest(async () => {
         const { id } = params;
         const body = await req.json();
