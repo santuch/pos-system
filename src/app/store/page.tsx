@@ -103,6 +103,8 @@ export default function StoreDashboard() {
     const [range, setRange] = useState<"day" | "week" | "month" | "year">("day");
     const [error, setError] = useState<string | null>(null);
     const [exportLoading, setExportLoading] = useState<boolean>(false);
+    const [chartType, setChartType] = useState<"line" | "bar">("line");
+    const [topItemsMode, setTopItemsMode] = useState<"quantity" | "revenue">("quantity");
 
     useEffect(() => {
         fetchAnalytics(range);
@@ -201,11 +203,23 @@ export default function StoreDashboard() {
             doc.setFontSize(12);
             doc.text("Summary", 14, 40);
             
+            // Calculate metrics directly from the current analytics data
+            const totalOrders = analytics.orders?.length || 0;
+            const totalSales = analytics.orders
+                ? analytics.orders.reduce(
+                    (acc, order) => acc + parsePrice(order.total_price),
+                    0
+                )
+                : 0;
+            const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+            const totalCustomers = analytics.totalCustomers || 0;
+            
             const summaryData = [
-                ["Total Orders", derivedMetrics.totalOrders.toString()],
-                ["Total Sales", `${derivedMetrics.totalSales.toFixed(2)} THB`],
-                ["Average Order Value", `${derivedMetrics.averageOrderValue.toFixed(2)} THB`],
-                ["Total Customers", derivedMetrics.totalCustomers.toString()]
+                ["Metric", "Value"],
+                ["Total Orders", totalOrders.toString()],
+                ["Total Sales", `${totalSales.toFixed(2)} THB`],
+                ["Average Order Value", `${averageOrderValue.toFixed(2)} THB`],
+                ["Total Customers", totalCustomers.toString()]
             ];
             
             doc.autoTable({
@@ -275,14 +289,25 @@ export default function StoreDashboard() {
                 "Status",
             ];
             
+            // Calculate metrics directly from the current analytics data
+            const totalOrders = analytics.orders?.length || 0;
+            const totalSales = analytics.orders
+                ? analytics.orders.reduce(
+                    (acc, order) => acc + parsePrice(order.total_price),
+                    0
+                )
+                : 0;
+            const averageOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+            const totalCustomers = analytics.totalCustomers || 0;
+            
             // Add summary data at the top
             const summaryData = [
                 ["Report Type", `Sales History (${range})`],
                 ["Generated At", new Date().toLocaleString()],
-                ["Total Orders", derivedMetrics.totalOrders.toString()],
-                ["Total Sales (THB)", derivedMetrics.totalSales.toFixed(2)],
-                ["Average Order Value (THB)", derivedMetrics.averageOrderValue.toFixed(2)],
-                ["Total Customers", derivedMetrics.totalCustomers.toString()],
+                ["Total Orders", totalOrders.toString()],
+                ["Total Sales (THB)", totalSales.toFixed(2)],
+                ["Average Order Value (THB)", averageOrderValue.toFixed(2)],
+                ["Total Customers", totalCustomers.toString()],
                 [""] // Empty row as separator
             ];
             
@@ -533,48 +558,97 @@ export default function StoreDashboard() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             {/* Daily Sales Chart */}
                             <Card className="shadow-sm">
-                                <div className="p-4 border-b flex items-center gap-2">
-                                    <BarChart className="h-5 w-5 text-blue-500" />
-                                    <h2 className="text-lg font-semibold text-gray-900">
-                                        Daily Sales
-                                    </h2>
+                                <div className="p-4 border-b flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <BarChart className="h-5 w-5 text-blue-500" />
+                                        <h2 className="text-lg font-semibold text-gray-900">
+                                            Daily Sales
+                                        </h2>
+                                    </div>
+                                    <Select
+                                        value={chartType}
+                                        onValueChange={(value) => 
+                                            setChartType(value as "line" | "bar")
+                                        }
+                                    >
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue placeholder="Chart Type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="line">Line Chart</SelectItem>
+                                            <SelectItem value="bar">Bar Chart</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="p-4 h-[300px]">
                                     {analytics?.dailySales?.length ? (
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart
-                                                data={analytics.dailySales}
-                                                margin={{
-                                                    top: 5,
-                                                    right: 30,
-                                                    left: 20,
-                                                    bottom: 5,
-                                                }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis 
-                                                    dataKey="date" 
-                                                    tick={{ fontSize: 12 }}
-                                                    tickFormatter={(value) => {
-                                                        const date = new Date(value);
-                                                        return `${date.getDate()}/${date.getMonth() + 1}`;
+                                            {chartType === "line" ? (
+                                                <LineChart
+                                                    data={analytics.dailySales}
+                                                    margin={{
+                                                        top: 5,
+                                                        right: 30,
+                                                        left: 20,
+                                                        bottom: 5,
                                                     }}
-                                                />
-                                                <YAxis tick={{ fontSize: 12 }} />
-                                                <Tooltip 
-                                                    formatter={(value) => [`${Number(value).toFixed(2)} THB`, 'Sales']}
-                                                    labelFormatter={(label) => new Date(label).toLocaleDateString()}
-                                                />
-                                                <Legend />
-                                                <Line
-                                                    type="monotone"
-                                                    dataKey="totalSales"
-                                                    name="Sales (THB)"
-                                                    stroke="#3b82f6"
-                                                    activeDot={{ r: 8 }}
-                                                    strokeWidth={2}
-                                                />
-                                            </LineChart>
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="date" 
+                                                        tick={{ fontSize: 12 }}
+                                                        tickFormatter={(value) => {
+                                                            const date = new Date(value);
+                                                            return `${date.getDate()}/${date.getMonth() + 1}`;
+                                                        }}
+                                                    />
+                                                    <YAxis tick={{ fontSize: 12 }} />
+                                                    <Tooltip 
+                                                        formatter={(value) => [`${Number(value).toFixed(2)} THB`, 'Sales']}
+                                                        labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                                                    />
+                                                    <Legend />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="totalSales"
+                                                        name="Sales (THB)"
+                                                        stroke="#3b82f6"
+                                                        activeDot={{ r: 8 }}
+                                                        strokeWidth={2}
+                                                    />
+                                                </LineChart>
+                                            ) : (
+                                                <RechartsBarChart
+                                                    data={analytics.dailySales}
+                                                    margin={{
+                                                        top: 5,
+                                                        right: 30,
+                                                        left: 20,
+                                                        bottom: 5,
+                                                    }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="date" 
+                                                        tick={{ fontSize: 12 }}
+                                                        tickFormatter={(value) => {
+                                                            const date = new Date(value);
+                                                            return `${date.getDate()}/${date.getMonth() + 1}`;
+                                                        }}
+                                                    />
+                                                    <YAxis tick={{ fontSize: 12 }} />
+                                                    <Tooltip 
+                                                        formatter={(value) => [`${Number(value).toFixed(2)} THB`, 'Sales']}
+                                                        labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                                                    />
+                                                    <Legend />
+                                                    <Bar
+                                                        dataKey="totalSales"
+                                                        name="Sales (THB)"
+                                                        fill="#3b82f6"
+                                                    />
+                                                </RechartsBarChart>
+                                            )}
                                         </ResponsiveContainer>
                                     ) : (
                                         <div className="h-full flex items-center justify-center">
@@ -586,11 +660,27 @@ export default function StoreDashboard() {
 
                             {/* Top Items Bar Chart */}
                             <Card className="shadow-sm">
-                                <div className="p-4 border-b flex items-center gap-2">
-                                    <TrendingUp className="h-5 w-5 text-green-500" />
-                                    <h2 className="text-lg font-semibold text-gray-900">
-                                        Top Selling Items
-                                    </h2>
+                                <div className="p-4 border-b flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp className="h-5 w-5 text-green-500" />
+                                        <h2 className="text-lg font-semibold text-gray-900">
+                                            Top Selling Items
+                                        </h2>
+                                    </div>
+                                    <Select
+                                        value={topItemsMode}
+                                        onValueChange={(value) => 
+                                            setTopItemsMode(value as "quantity" | "revenue")
+                                        }
+                                    >
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue placeholder="Display Mode" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="quantity">Quantity</SelectItem>
+                                            <SelectItem value="revenue">Revenue</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div className="p-4 h-[300px]">
                                     {analytics?.topItems?.length ? (
@@ -621,16 +711,19 @@ export default function StoreDashboard() {
                                                     }}
                                                 />
                                                 <Legend />
-                                                <Bar 
-                                                    dataKey="totalQuantity" 
-                                                    name="Quantity" 
-                                                    fill="#10b981" 
-                                                />
-                                                <Bar 
-                                                    dataKey="totalRevenue" 
-                                                    name="Revenue (THB)" 
-                                                    fill="#6366f1" 
-                                                />
+                                                {topItemsMode === "quantity" ? (
+                                                    <Bar 
+                                                        dataKey="totalQuantity" 
+                                                        name="Quantity" 
+                                                        fill="#10b981" 
+                                                    />
+                                                ) : (
+                                                    <Bar 
+                                                        dataKey="totalRevenue" 
+                                                        name="Revenue (THB)" 
+                                                        fill="#6366f1" 
+                                                    />
+                                                )}
                                             </RechartsBarChart>
                                         </ResponsiveContainer>
                                     ) : (

@@ -48,6 +48,7 @@ export async function GET(request: Request) {
       FROM orders o
       LEFT JOIN payments p ON o.id = p.order_id
       WHERE o.status = 'paid'
+        AND ${dateCondition.replace('created_at', 'o.created_at')}
       ORDER BY p.created_at DESC  -- Sort by payment time, newest first
     `);
         // You can further type-check the orders if you have an Order interface
