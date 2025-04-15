@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreditCard, DollarSign, Users } from "lucide-react";
 import SideNav from "@/components/SideNav";
+import BillModal from "@/components/BillModal";
 
 type OrderItem = {
     id: number;
@@ -33,6 +34,9 @@ type Order = {
 export default function PaymentDashboard() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    // Bill modal state
+    const [billOpen, setBillOpen] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
     useEffect(() => {
         fetchOrders();
@@ -147,7 +151,7 @@ export default function PaymentDashboard() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {orders.map((order) => (
-                            <Card key={order.id}>
+                            <Card key={order.id} className="shadow">
                                 <CardHeader>
                                     <CardTitle className="flex justify-between items-center">
                                         <span>Order #{order.id}</span>
@@ -174,31 +178,33 @@ export default function PaymentDashboard() {
                                         <div className="flex items-center font-bold">
                                             <DollarSign className="mr-2 h-4 w-4" />
                                             <span>
-                                                {Number(
-                                                    order.total_price
-                                                ).toFixed(2)}{" "}
-                                                THB
+                                                {Number(order.total_price).toFixed(2)} THB
                                             </span>
                                         </div>
                                     </div>
                                 </CardContent>
                                 <CardFooter className="flex flex-col gap-2">
                                     <Button
+                                        variant="outline"
                                         className="w-full"
-                                        onClick={() =>
-                                            handleStripePayment(order)
-                                        }
+                                        onClick={() => {
+                                            setSelectedOrder(order);
+                                            setBillOpen(true);
+                                        }}
                                     >
-                                        <CreditCard className="mr-2 h-4 w-4" />{" "}
-                                        Pay with Stripe
+                                        View Bill
+                                    </Button>
+                                    <Button
+                                        className="w-full"
+                                        onClick={() => handleStripePayment(order)}
+                                    >
+                                        <CreditCard className="mr-2 h-4 w-4" /> Pay with Stripe
                                     </Button>
                                     <div className="flex gap-2 w-full">
                                         <Button
                                             variant="outline"
                                             className="flex-1"
-                                            onClick={() =>
-                                            handleCashPayment(order)
-                                            }
+                                            onClick={() => handleCashPayment(order)}
                                         >
                                             Mark as Paid
                                         </Button>
@@ -227,6 +233,24 @@ export default function PaymentDashboard() {
                             </Card>
                         ))}
                     </div>
+                )}
+                {/* Bill Modal */}
+                {selectedOrder && (
+                    <BillModal
+                        orderId={selectedOrder.id}
+                        tableNumber={selectedOrder.table_number}
+                        items={selectedOrder.items.map((item) => ({
+                            id: item.id,
+                            name: item.name,
+                            quantity: item.quantity,
+                            price: item.price,
+                        }))}
+                        open={billOpen}
+                        onOpenChange={(open) => {
+                            setBillOpen(open);
+                            if (!open) setSelectedOrder(null);
+                        }}
+                    />
                 )}
             </div>
         </div>

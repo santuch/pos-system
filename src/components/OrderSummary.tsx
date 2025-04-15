@@ -55,7 +55,7 @@ export default function OrderSummary({
         (acc, item) => acc + item.price * item.quantity,
         0
     );
-    const tax = subtotal * 0.05;
+    const tax = subtotal * 0.07;
     const total = subtotal + tax;
 
     // Format currency with Thai locale
@@ -269,7 +269,7 @@ export default function OrderSummary({
                         <span>{formatCurrency(subtotal)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                        <span>Tax (5%)</span>
+                        <span>Tax (7%)</span>
                         <span>{formatCurrency(tax)}</span>
                     </div>
                     <Separator className="my-2" />
