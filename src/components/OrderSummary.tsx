@@ -51,77 +51,71 @@ export default function OrderSummary({
     const errorRef = useRef<HTMLDivElement>(null);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    const subtotal = items.reduce(
-        (acc, item) => acc + item.price * item.quantity,
-        0
-    );
+    const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
     const tax = subtotal * 0.07;
     const total = subtotal + tax;
 
-    // Format currency with Thai locale
-    const formatCurrency = (amount: number) =>
-        amount.toLocaleString("th-TH", { style: "currency", currency: "THB" });
-
     const handlePlaceOrder = async () => {
-      if (items.length === 0) {
-        setErrorMessage("Cart is empty. Please add items before placing an order.");
-        return;
-      }
+        if (items.length === 0) {
+            setErrorMessage("Cart is empty. Please add items before placing an order.");
+            return;
+        }
 
-      const parsedNumberOfCustomers = Number(numberOfCustomers);
-      if (isNaN(parsedNumberOfCustomers) || parsedNumberOfCustomers < 1) {
-          setErrorMessage("Please enter a valid number of customers (at least 1).");
-          return;
-      }
-      if (!selectedTable) {
-          setErrorMessage("Please select a table number.");
-          return;
-      }
+        const parsedNumberOfCustomers = Number(numberOfCustomers);
+        if (isNaN(parsedNumberOfCustomers) || parsedNumberOfCustomers < 1) {
+            setErrorMessage("Please enter a valid number of customers (at least 1).");
+            return;
+        }
+        if (!selectedTable) {
+            setErrorMessage("Please select a table number.");
+            return;
+        }
 
-      const orderData = {
-          tableNumber: selectedTable,
-          numberOfCustomers: parsedNumberOfCustomers.toString(),
-          items: items.map((item) => ({
-              id: item.productId,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-          })),
-          totalPrice: total,
-      };
+        const orderData = {
+            tableNumber: selectedTable,
+            numberOfCustomers: parsedNumberOfCustomers.toString(),
+            items: items.map((item) => ({
+                id: item.productId,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+            })),
+            totalPrice: total,
+        };
 
-      try {
-          setLoading(true);
-          setErrorMessage(null); // Clear previous errors
-          const response = await fetch("/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData),
-          });
+        try {
+            setLoading(true);
+            setErrorMessage(null); // Clear previous errors
+            const response = await fetch("/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData),
+            });
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            setErrorMessage(errorData.error || "Failed to place order. Please try again.");
-          } else {
-            onPlaceOrder(); // Clear cart on success
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 2500);
-          }
-
-      } catch (error) {
-          console.error("Error placing order:", error);
-          setErrorMessage("An unexpected error occurred. Please try again.");
-      } finally {
-          setLoading(false);
-      }
-  };
+            if (!response.ok) {
+                const errorData = await response.json();
+                setErrorMessage(errorData.error || "Failed to place order. Please try again.");
+            } else {
+                onPlaceOrder(); // Clear cart on success
+                setShowSuccess(true);
+                setTimeout(() => setShowSuccess(false), 2500);
+            }
+        } catch (error) {
+            console.error("Error placing order:", error);
+            setErrorMessage("An unexpected error occurred. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Focus error banner when error appears
     useEffect(() => {
-      if (errorMessage && errorRef.current) {
-        errorRef.current.focus();
-      }
+        if (errorMessage && errorRef.current) {
+            errorRef.current.focus();
+        }
     }, [errorMessage]);
+
+    const formatCurrency = (amount: number) => amount.toLocaleString("th-TH", { style: "currency", currency: "THB" });
 
     return (
         <div className="flex flex-col h-full">

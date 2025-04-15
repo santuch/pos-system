@@ -38,6 +38,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import BillModal from "@/components/BillModal";
 
 type Order = {
     id: number;
@@ -48,6 +49,7 @@ type Order = {
     paid_at?: string;
     created_at: string;
     status: string;
+    items?: any[];
 };
 
 type DailySales = {
@@ -106,6 +108,12 @@ export default function StoreDashboard() {
     const [chartType, setChartType] = useState<"line" | "bar">("line");
     const [topItemsMode, setTopItemsMode] = useState<"quantity" | "revenue">("quantity");
 
+    // Bill modal state
+    const [billOpen, setBillOpen] = useState(false);
+    const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+    const [billItems, setBillItems] = useState<any[]>([]);
+    const [billOrder, setBillOrder] = useState<Order | null>(null);
+
     useEffect(() => {
         fetchAnalytics(range);
     }, [range]);
@@ -135,6 +143,26 @@ export default function StoreDashboard() {
             setLoading(false);
         }
     };
+
+    // Fetch order items when the bill modal opens
+    useEffect(() => {
+        if (selectedOrderId !== null && billOpen) {
+            (async () => {
+                const res = await fetch(`/api/orders/${selectedOrderId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setBillItems(data.items || []);
+                    setBillOrder(data);
+                } else {
+                    setBillItems([]);
+                    setBillOrder(null);
+                }
+            })();
+        } else {
+            setBillItems([]);
+            setBillOrder(null);
+        }
+    }, [selectedOrderId, billOpen]);
 
     // ---------- Derived Metrics ----------
     const derivedMetrics = useMemo(() => {
@@ -590,7 +618,10 @@ export default function StoreDashboard() {
                                                     />
                                                     <YAxis tick={{ fontSize: 12 }} />
                                                     <Tooltip 
-                                                        formatter={(value) => [`${Number(value).toFixed(2)} THB`, 'Sales']}
+                                                        formatter={(value, name) => {
+                                                            if (name === 'totalSales') return [`${Number(value).toFixed(2)} THB`, 'Sales'];
+                                                            return [value, name];
+                                                        }}
                                                         labelFormatter={(label) => new Date(label).toLocaleDateString()}
                                                     />
                                                     <Legend />
@@ -624,7 +655,10 @@ export default function StoreDashboard() {
                                                     />
                                                     <YAxis tick={{ fontSize: 12 }} />
                                                     <Tooltip 
-                                                        formatter={(value) => [`${Number(value).toFixed(2)} THB`, 'Sales']}
+                                                        formatter={(value, name) => {
+                                                            if (name === 'totalSales') return [`${Number(value).toFixed(2)} THB`, 'Sales'];
+                                                            return [value, name];
+                                                        }}
                                                         labelFormatter={(label) => new Date(label).toLocaleDateString()}
                                                     />
                                                     <Legend />
@@ -732,93 +766,75 @@ export default function StoreDashboard() {
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm text-gray-700">
-                                    <thead className="bg-gray-50 border-b">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Order ID
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Paid At
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Table
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Customers
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Payment Method
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Total (THB)
-                                            </th>
-                                            <th className="py-3 px-4 text-left font-medium">
-                                                Status
-                                            </th>
+                                            <th className="py-3 px-4 text-left">Order ID</th>
+                                            <th className="py-3 px-4 text-left">Paid At</th>
+                                            <th className="py-3 px-4 text-left">Table Number</th>
+                                            <th className="py-3 px-4 text-left">Number of Customers</th>
+                                            <th className="py-3 px-4 text-left">Payment Method</th>
+                                            <th className="py-3 px-4 text-left">Total Price (THB)</th>
+                                            <th className="py-3 px-4 text-left">Status</th>
+                                            <th className="py-3 px-4 text-left">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {!analytics?.salesHistory?.length ? (
+                                        {analytics?.salesHistory?.length === 0 ? (
                                             <tr>
                                                 <td
-                                                    colSpan={7}
+                                                    colSpan={8}
                                                     className="py-4 px-4 text-center text-gray-500"
                                                 >
                                                     No sales history available.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            analytics.salesHistory.map(
-                                                (order) => (
-                                                    <tr
-                                                        key={order.id}
-                                                        className="border-b hover:bg-gray-50"
-                                                    >
-                                                        <td className="py-3 px-4">
-                                                            {order.id}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {order.paid_at
-                                                                ? new Date(
-                                                                      order.paid_at
-                                                                  ).toLocaleString()
-                                                                : "N/A"}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {order.table_number}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {
-                                                                order.number_of_customers
-                                                            }
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {order.payment_method ||
-                                                                "N/A"}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            {parsePrice(
-                                                                order.total_price
-                                                            ).toFixed(2)}
-                                                        </td>
-                                                        <td className="py-3 px-4">
-                                                            <span className={`px-2 py-1 rounded-full text-xs ${
-                                                                order.status === 'paid' 
-                                                                    ? 'bg-green-100 text-green-800' 
-                                                                    : 'bg-yellow-100 text-yellow-800'
-                                                            }`}>
-                                                                {order.status}
-                                                            </span>
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            )
+                                            analytics?.salesHistory?.map((order) => (
+                                                <tr key={order.id} className="border-b hover:bg-gray-50">
+                                                    <td className="py-3 px-4">{order.id}</td>
+                                                    <td className="py-3 px-4">{order.paid_at ? new Date(order.paid_at).toLocaleString() : "N/A"}</td>
+                                                    <td className="py-3 px-4">{order.table_number}</td>
+                                                    <td className="py-3 px-4">{order.number_of_customers}</td>
+                                                    <td className="py-3 px-4">{order.payment_method || "N/A"}</td>
+                                                    <td className="py-3 px-4">{parsePrice(order.total_price).toFixed(2)}</td>
+                                                    <td className="py-3 px-4">
+                                                        <span className={`px-2 py-1 rounded-full text-xs ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                            {order.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedOrderId(order.id);
+                                                                setBillOpen(true);
+                                                            }}
+                                                        >
+                                                            View Bill
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))
                                         )}
                                     </tbody>
                                 </table>
                             </div>
                         </Card>
+                        {/* Bill Modal */}
+                        {billOrder && (
+                            <BillModal
+                                orderId={billOrder.id}
+                                tableNumber={billOrder.table_number}
+                                items={billItems}
+                                open={billOpen}
+                                onOpenChange={(open) => {
+                                    setBillOpen(open);
+                                    if (!open) setSelectedOrderId(null);
+                                }}
+                            />
+                        )}
                     </>
                 )}
             </main>
