@@ -40,6 +40,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import BillModal from "@/components/BillModal";
 
+type OrderItem = {
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+};
+
 type Order = {
     id: number;
     table_number: string;
@@ -49,7 +56,7 @@ type Order = {
     paid_at?: string;
     created_at: string;
     status: string;
-    items?: any[];
+    items?: OrderItem[];
 };
 
 type DailySales = {
@@ -111,7 +118,7 @@ export default function StoreDashboard() {
     // Bill modal state
     const [billOpen, setBillOpen] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
-    const [billItems, setBillItems] = useState<any[]>([]);
+    const [billItems, setBillItems] = useState<OrderItem[]>([]);
     const [billOrder, setBillOrder] = useState<Order | null>(null);
 
     useEffect(() => {
