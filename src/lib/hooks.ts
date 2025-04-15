@@ -39,8 +39,8 @@ export function useLowStockWarning() {
 
     useEffect(() => {
         checkIngredients();
-        // Poll every 60 seconds
-        const interval = setInterval(checkIngredients, 60000);
+        // Poll every 30 seconds
+        const interval = setInterval(checkIngredients, 30000);
         return () => clearInterval(interval);
     }, []);
 
