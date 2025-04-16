@@ -128,7 +128,7 @@ export default function StoreDashboard() {
             setAnalytics(data);
         } catch (error) {
             console.error("Error fetching analytics:", error);
-            setError(typeof error === "object" && error !== null && "message" in error ? String((error as any).message) : "Failed to fetch analytics");
+            setError(error instanceof Error ? error.message : "Failed to fetch analytics");
             setAnalytics(null);
         } finally {
             setLoading(false);
