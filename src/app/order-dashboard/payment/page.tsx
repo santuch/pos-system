@@ -58,33 +58,20 @@ export default function PaymentDashboard() {
         }
     };
 
-    const handleCashPayment = async (order: Order) => {
+    const updateStatus = async (orderId: number, newStatus: string) => {
         try {
-            // First update the order status to 'paid'
-            const statusRes = await fetch(`/api/orders/${order.id}`, {
+            const res = await fetch(`/api/orders/${orderId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: "paid" }),
+                body: JSON.stringify({ status: newStatus }),
             });
-            
-            // Then create a payment record for the cash payment
-            const paymentRes = await fetch("/api/payments", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    paymentMethod: "cash",
-                    paymentStatus: "succeeded"
-                }),
-            });
-            
-            if (statusRes.ok && paymentRes.ok) {
-                fetchOrders(); // Refresh the orders list
+            if (res.ok) {
+                fetchOrders();
             } else {
-                console.error("Failed to process cash payment");
+                console.error("Failed to update order status");
             }
         } catch (error) {
-            console.error("Error processing cash payment:", error);
+            console.error("Error updating order status:", error);
         }
     };
 
@@ -211,20 +198,12 @@ export default function PaymentDashboard() {
                                         <Button
                                             variant="outline"
                                             className="flex-1"
-                                            onClick={async () => {
-                                                try {
-                                                    const res = await fetch(`/api/orders/${order.id}`, {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ status: "cancelled" }),
-                                                    });
-                                                    if (res.ok) {
-                                                        fetchOrders();
-                                                    }
-                                                } catch (error) {
-                                                    console.error("Error cancelling order:", error);
-                                                }
-                                            }}
+                                            onClick={() =>
+                                                updateStatus(
+                                                    order.id,
+                                                    "cancelled"
+                                                )
+                                            }
                                         >
                                             Cancel Order
                                         </Button>

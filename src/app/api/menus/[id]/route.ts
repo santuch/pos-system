@@ -9,7 +9,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function PUT(
+// GET: Retrieve a specific menu by ID
+export async function GET(
     request: Request,
     context: { params: Promise<{ id: string }> }
 ): Promise<Response> {
@@ -110,6 +111,47 @@ export async function PUT(
     }, "Error updating menu");
 }
 
+// PUT: Update an existing menu by ID
+export async function PUT(
+    request: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const { id } = params;
+        const body = await request.json();
+        const { name, category, price, description, image_url } = body;
+
+        // Validate required fields for update
+        if (!name || price === undefined) {
+            return NextResponse.json(
+                { error: "Missing required fields: name and price" },
+                { status: 400 }
+            );
+        }
+
+        const result = await pool.query(
+            `UPDATE menus
+       SET name = $1, category = $2, price = $3, description = $4, image_url = $5, updated_at = NOW()
+       WHERE id = $6 RETURNING *`,
+            [name, category, price, description, image_url, id]
+        );
+        if (result.rows.length === 0) {
+            return NextResponse.json(
+                { error: "Menu not found" },
+                { status: 404 }
+            );
+        }
+        return NextResponse.json(result.rows[0]);
+    } catch (error) {
+        console.error("Error updating menu:", error);
+        return NextResponse.json(
+            { error: "Failed to update menu" },
+            { status: 500 }
+        );
+    }
+}
+
+// DELETE: Remove a menu by ID
 export async function DELETE(
     request: Request,
     context: { params: Promise<{ id: string }> }

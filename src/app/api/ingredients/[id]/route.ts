@@ -9,13 +9,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function PUT(
+// GET: Retrieve a specific ingredient by ID
+export async function GET(
     request: Request,
-    context: { params: Promise<{ id: string }> }
-): Promise<Response> {
-    const params = await context.params;
-    return handleApiRequest(async () => {
-        const { id } = params;
+    { params }: { params: { id: string } }
+) {
+    try {
+        const { id } = await params;
         const body = await request.json();
         
         // Validate required fields
@@ -27,6 +27,44 @@ export async function PUT(
         
         const { name, quantity, unit, threshold } = body;
         
+        const result = await pool.query(
+            `SELECT * FROM ingredients WHERE id = $1`,
+            [id]
+        );
+        
+        if (result.rows.length === 0) {
+            return NextResponse.json(
+                { error: "Ingredient not found" },
+                { status: 404 }
+            );
+        }
+        return NextResponse.json(result.rows[0]);
+    } catch (error) {
+        console.error("Error retrieving ingredient:", error);
+        return NextResponse.json(
+            { error: "Failed to retrieve ingredient" },
+            { status: 500 }
+        );
+    }
+}
+
+// PUT: Update an ingredient by ID
+export async function PUT(
+    request: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const { id } = await params;
+        const body = await request.json();
+        
+        // Validate required fields
+        const requiredFields = ['name', 'quantity', 'unit', 'threshold'];
+        const missingField = validateRequiredFields(body, requiredFields);
+        if (missingField) {
+            return badRequestResponse(missingField);
+        }
+        
+        const { name, quantity, unit, threshold } = body;
         const result = await pool.query(
             `UPDATE ingredients
             SET name = $1, quantity = $2, unit = $3, threshold = $4, updated_at = NOW()
@@ -45,7 +83,7 @@ export async function PUT(
     }, "Error updating ingredient");
 }
 
-// DELETE: Remove an ingredient
+// DELETE: Remove an ingredient by ID
 export async function DELETE(
     request: Request,
     context: { params: Promise<{ id: string }> }
@@ -86,7 +124,7 @@ export async function DELETE(
     }, "Error deleting ingredient");
 }
 
-// PATCH: Update stock (add stock) for an ingredient
+// PATCH: Update stock (add stock) for an ingredient by ID
 export async function PATCH(
     request: Request,
     context: { params: Promise<{ id: string }> }
