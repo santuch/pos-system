@@ -8,10 +8,10 @@ const categories = [
     { id: "Desserts", label: "Desserts", icon: "🍰" },
 ];
 
-type Props = {
+interface Props {
     activeCategory: string;
     onChange: (cat: string) => void;
-};
+}
 
 export default function CategoryTabs({ activeCategory, onChange }: Props) {
     return (

@@ -15,15 +15,15 @@ import {
 } from "@/components/ui/select";
 import { Minus, Plus, X } from "lucide-react";
 
-type CartItem = {
+interface CartItem {
     productId: number;
     name: string;
     price: number;
     image_url: string;
     quantity: number;
-};
+}
 
-type OrderSummaryProps = {
+interface OrderSummaryProps {
     items: CartItem[];
     selectedTable: string;
     setSelectedTable: (value: string) => void;
@@ -33,7 +33,7 @@ type OrderSummaryProps = {
     onDecrement: (productId: number) => void;
     onRemove: (productId: number) => void;
     onPlaceOrder: () => void;
-};
+}
 
 export default function OrderSummary({
     items,

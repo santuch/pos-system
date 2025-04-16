@@ -10,20 +10,20 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-type BillItem = {
+interface BillItem {
   id: number;
   name: string;
   quantity: number;
   price: number;
-};
+}
 
-type BillModalProps = {
+interface BillModalProps {
   orderId: number;
   tableNumber: string;
   items: BillItem[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-};
+}
 
 export default function BillModal({ orderId, tableNumber, items, open, onOpenChange }: BillModalProps) {
   // Calculate subtotal

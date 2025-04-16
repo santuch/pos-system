@@ -11,7 +11,8 @@ import {
     RefreshCw, 
     Download, 
     ArrowUpRight, 
-    ArrowDownRight 
+    ArrowDownRight, 
+    AlertCircle 
 } from "lucide-react";
 import {
     LineChart,
@@ -37,7 +38,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 import BillModal from "@/components/BillModal";
 
 type OrderItem = {
@@ -83,39 +83,31 @@ type AnalyticsData = {
     error?: string;
 };
 
-// ---------- Helper Function ----------
 function parsePrice(val: number | string): number {
     const num = parseFloat(String(val));
     return isNaN(num) ? 0 : num;
 }
 
-// Extend jsPDF to include the autoTable method.
+// Extended jsPDF interface for autoTable with correct 'previous' property
 interface jsPDFWithAutoTable extends jsPDF {
-    autoTable: {
-        (options: {
-            head: string[][];
-            body: (string | number)[][];
-            startY: number;
-            margin?: { top: number };
-            styles?: { fontSize: number };
-            headStyles?: { fillColor: number[] };
-        }): void;
-        previous?: {
-            finalY: number;
-        };
-    };
+    autoTable: ((options: {
+        head: string[][];
+        body: (string | number)[][];
+        startY: number;
+        margin?: { top: number };
+        styles?: { fontSize: number };
+        headStyles?: { fillColor: number[] };
+    }) => void) & { previous?: { finalY: number } };
 }
 
 export default function StoreDashboard() {
     const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState(true);
     const [range, setRange] = useState<"day" | "week" | "month" | "year">("day");
     const [error, setError] = useState<string | null>(null);
-    const [exportLoading, setExportLoading] = useState<boolean>(false);
+    const [exportLoading, setExportLoading] = useState(false);
     const [chartType, setChartType] = useState<"line" | "bar">("line");
     const [topItemsMode, setTopItemsMode] = useState<"quantity" | "revenue">("quantity");
-
-    // Bill modal state
     const [billOpen, setBillOpen] = useState(false);
     const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
     const [billItems, setBillItems] = useState<OrderItem[]>([]);
@@ -129,29 +121,20 @@ export default function StoreDashboard() {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(
-                `/api/store-analytics?range=${selectedRange}`
-            );
-            if (!res.ok) {
-                throw new Error(`HTTP error! Status: ${res.status}`);
-            }
+            const res = await fetch(`/api/store-analytics?range=${selectedRange}`);
+            if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
             const data = await res.json();
-            if (data.error) {
-                throw new Error(data.error);
-            }
+            if (data.error) throw new Error(data.error);
             setAnalytics(data);
         } catch (error) {
             console.error("Error fetching analytics:", error);
-            setError(typeof error === 'object' && error !== null && 'message' in error 
-                ? String(error.message) 
-                : "Failed to fetch analytics");
+            setError(typeof error === "object" && error !== null && "message" in error ? String((error as any).message) : "Failed to fetch analytics");
             setAnalytics(null);
         } finally {
             setLoading(false);
         }
     };
 
-    // Fetch order items when the bill modal opens
     useEffect(() => {
         if (selectedOrderId !== null && billOpen) {
             (async () => {
@@ -171,7 +154,6 @@ export default function StoreDashboard() {
         }
     }, [selectedOrderId, billOpen]);
 
-    // ---------- Derived Metrics ----------
     const derivedMetrics = useMemo(() => {
         if (!analytics) return {
             totalOrders: 0,
@@ -217,7 +199,6 @@ export default function StoreDashboard() {
         };
     }, [analytics]);
 
-    // ---------- Export Functions ----------
     const exportPDF = () => {
         if (!analytics?.salesHistory || analytics.salesHistory.length === 0) {
             alert("No sales history to export.");
