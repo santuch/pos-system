@@ -395,6 +395,21 @@ export default function MenuManagement() {
                       accept="image/*"
                       onChange={handleImageUpload}
                     />
+                    {image && (
+                      <div className="mt-2">
+                        <div className="relative h-32 w-32 rounded-md overflow-hidden border">
+                          <Image 
+                            src={image} 
+                            alt="Preview" 
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Image Preview
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-4 items-start gap-4">
