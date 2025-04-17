@@ -180,13 +180,19 @@ export default function MenuManagement() {
             return;
         }
 
+        // Normalize ingredient names to lowercase
+        const normalizedIngredients = ingredients.map(ing => ({
+            ...ing,
+            name: ing.name.toLowerCase()
+        }));
+
         const newMenuItem = {
             name: menuName,
             category,
             price: parsedPrice,
             description,
             image_url: image,
-            ingredients,
+            ingredients: normalizedIngredients,
         };
 
         try {
@@ -249,6 +255,8 @@ export default function MenuManagement() {
         setErrorMessage("Failed to refresh menu items. Please check your network connection.");
       }
     };
+
+    const displayName = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
 
     return (
       <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
@@ -419,7 +427,7 @@ export default function MenuManagement() {
                       <div key={index} className="flex gap-2">
                         <Input
                           placeholder="Ingredient Name"
-                          value={ingredient.name}
+                          value={displayName(ingredient.name)}
                           onChange={(e) =>
                             updateIngredient(index, "name", e.target.value)
                           }

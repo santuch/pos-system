@@ -80,28 +80,32 @@ export async function POST(request: Request) {
             if (ingredients && Array.isArray(ingredients)) {
                 for (const ing of ingredients) {
                     let ingredientId = ing.id;
+                    const normalizedName = ing.name.toLowerCase();
+                    
                     if (!ingredientId) {
                         // find ingredient by name (case-insensitive)
                         const findRes = await client.query(
-                            `SELECT id FROM ingredients WHERE name ILIKE $1 LIMIT 1`,
-                            [ing.name]
+                            `SELECT id FROM ingredients WHERE LOWER(name) = $1 LIMIT 1`,
+                            [normalizedName]
                         );
+                        
                         if (findRes.rows.length > 0) {
                             ingredientId = findRes.rows[0].id;
                         } else {
-                            // Insert new ingredient with default values
+                            // Insert new ingredient with normalized name
                             const insertIngRes = await client.query(
                                 `INSERT INTO ingredients (name, quantity, unit, threshold)
-                 VALUES ($1, 0, 'unit', 0)
-                 RETURNING id`,
-                                [ing.name]
+                                VALUES ($1, 0, 'unit', 0)
+                                RETURNING id`,
+                                [normalizedName]
                             );
                             ingredientId = insertIngRes.rows[0].id;
                         }
                     }
+                    
                     await client.query(
                         `INSERT INTO menu_item_ingredients (menu_item_id, ingredient_id, amount_required)
-             VALUES ($1, $2, $3)`,
+                        VALUES ($1, $2, $3)`,
                         [menu.id, ingredientId, ing.amount || 0]
                     );
                 }
