@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useLowStockWarning, LowStockIngredient } from "@/lib/hooks";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Home,
     UtensilsCrossed,
@@ -45,11 +45,18 @@ const menuItems = [
 
 export default function SideNav() {
     const pathname = usePathname();
-    const { items: lowStockItems, loading: lowStockLoading, error: lowStockError } = useLowStockWarning();
+    const { items: lowStockItems, loading: lowStockLoading, error: lowStockError, checkIngredients } = useLowStockWarning();
     const [dismissed, setDismissed] = useState(false);
 
     const getSeverityLabel = (severity: string) => severity === 'critical' ? 'Critical' : 'Low';
     const getSeverityColor = (severity: string) => severity === 'critical' ? 'bg-red-600 text-white' : 'bg-yellow-400 text-black';
+
+    // Listen for custom event to refresh low stock warning
+    useEffect(() => {
+        const handler = () => checkIngredients();
+        window.addEventListener('lowStockRefresh', handler);
+        return () => window.removeEventListener('lowStockRefresh', handler);
+    }, [checkIngredients]);
 
     return (
         <aside className="w-64 bg-white border-r h-screen p-4">

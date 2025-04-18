@@ -117,20 +117,11 @@ export default function IngredientManagement() {
                     body: JSON.stringify(newIngredient),
                 });
             }
-
-            if (response.ok) {
-                alert(
-                    editingIngredient
-                        ? "Ingredient updated!"
-                        : "Ingredient added!"
-                );
-                setShowModal(false);
-                fetchIngredients();
-                setErrorMessage(null); // Clear any previous error
-            } else {
-                const errorData = await response.json();
-                setErrorMessage(errorData.error || "Failed to save ingredient. Please try again.");
-            }
+            if (!response.ok) throw new Error("Failed to save ingredient");
+            setShowModal(false);
+            fetchIngredients();
+            window.dispatchEvent(new Event('lowStockRefresh'));
+            setErrorMessage(null); // Clear any previous error
         } catch (error) {
             console.error("Error saving ingredient:", error);
             setErrorMessage("Something went wrong. Please try again.");
@@ -165,38 +156,34 @@ export default function IngredientManagement() {
     };
 
   const handleAddStock = async () => {
-        if (!addStockAmount || isNaN(Number(addStockAmount))) {
-            alert("Please enter a valid number for stock amount.");
+        if (!selectedIngredient || !addStockAmount) return;
+        const amount = Number.parseFloat(addStockAmount);
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid amount to add.");
             return;
         }
-        if (!selectedIngredient) return;
-
         try {
-            const res = await fetch(
-                `/api/ingredients/${selectedIngredient.id}`,
-                {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ amount: Number(addStockAmount) }),
-                }
-            );
-            if (res.ok) {
-                setShowAddStockModal(false);
-                fetchIngredients();
-                setErrorMessage(null); // Clear error
-            } else {
-                const errorData = await res.json();
-                setErrorMessage(errorData.error || "Failed to update stock. Please try again.");
-            }
+            const response = await fetch(`/api/ingredients/${selectedIngredient.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ amount }),
+            });
+            if (!response.ok) throw new Error("Failed to add stock");
+            setShowAddStockModal(false);
+            fetchIngredients();
+            window.dispatchEvent(new Event('lowStockRefresh'));
+            setErrorMessage(null); // Clear error
         } catch (error) {
-            console.error("Error updating stock:", error);
+            console.error("Error adding stock:", error);
              setErrorMessage("Something went wrong while updating stock.");
         }
     };
 
-    const filteredIngredients = ingredients.filter((ing) =>
-        ing.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredIngredients = ingredients
+        .filter((ing) =>
+            ing.name.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     return (
       <div className="flex h-screen">
