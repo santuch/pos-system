@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>POS System Architecture Overview</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; }
+    h1, h2 { color: #1a202c; }
+    .diagram { background: #fff; border-radius: 8px; padding: 1rem; margin-bottom: 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    ul { margin-bottom: 1.5rem; }
+    code { background: #eee; border-radius: 4px; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>POS System Architecture Overview</h1>
+  <p>This document provides a high-level overview of the project structure, main components, and data flow for the POS system.</p>
+
+  <h2>1. Project Structure</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+      graph TD
+        A[Root Directory]
+        A --> B(src/)
+        A --> C(db/)
+        A --> D(public/)
+        A --> E(config & env files)
+        B --> B1(app/)
+        B --> B2(components/)
+        B --> B3(lib/)
+        B --> B4(types/)
+        B1 --> B1a(api/)
+        B1 --> B1b(store/)
+        B1 --> B1c(order-dashboard/)
+        B1 --> B1d(MenuManagement/)
+        B1 --> B1e(checkout/)
+        B2 --> B2a(dashboard/)
+        B2 --> B2b(ui/)
+        C --> C1(schema.sql)
+    </pre>
+  </div>
+  <ul>
+    <li><b>src/app/</b>: Main app logic (pages, API routes, features)</li>
+    <li><b>src/components/</b>: Reusable UI components</li>
+    <li><b>src/lib/</b>: Utility functions, DB and Stripe integration</li>
+    <li><b>db/schema.sql</b>: Database schema (PostgreSQL)</li>
+    <li><b>public/</b>: Static assets (images, icons)</li>
+    <li><b>Config & env files</b>: Project configuration, environment variables</li>
+  </ul>
+
+  <h2>2. High-Level Application Architecture</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+      graph LR
+        User[User (Browser)]
+        FE[Next.js Frontend (src/app)]
+        API[API Routes (src/app/api)]
+        DB[PostgreSQL\ndb/schema.sql]
+        Stripe[Stripe Payments]
+        User -- UI/UX --> FE
+        FE -- fetch/submit --> API
+        API -- SQL queries --> DB
+        API -- payment events --> Stripe
+        Stripe -- webhook events --> API
+    </pre>
+  </div>
+  <ul>
+    <li>User interacts with the frontend (Next.js pages, e.g. POS, dashboard)</li>
+    <li>Frontend calls API routes for data (orders, analytics, payments, etc.)</li>
+    <li>API reads/writes to PostgreSQL database</li>
+    <li>Stripe is used for payment processing and webhooks</li>
+  </ul>
+
+  <h2>3. Key Features & Where to Find Them</h2>
+  <ul>
+    <li><b>Store Dashboard:</b> <code>src/app/store/page.tsx</code> (analytics, charts, export)</li>
+    <li><b>Order Dashboard:</b> <code>src/app/order-dashboard/</code></li>
+    <li><b>Menu Management:</b> <code>src/app/MenuManagement/</code></li>
+    <li><b>Checkout & POS:</b> <code>src/app/checkout/</code>, <code>src/app/pos/</code></li>
+    <li><b>API Endpoints:</b> <code>src/app/api/</code> (orders, menus, payments, analytics, etc.)</li>
+    <li><b>UI Components:</b> <code>src/components/</code> (dashboard widgets, modals, tables, etc.)</li>
+    <li><b>Database Schema:</b> <code>db/schema.sql</code></li>
+    <li><b>Stripe Integration:</b> <code>src/lib/stripe.ts</code>, <code>src/app/api/payments/</code>, <code>src/app/api/webhooks/</code></li>
+  </ul>
+
+  <h2>4. Data Flow Example (Order Placement)</h2>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User
+        participant F as Frontend (Next.js)
+        participant A as API Route
+        participant D as Database
+        participant S as Stripe
+        U->>F: Place Order (UI)
+        F->>A: POST /api/orders
+        A->>D: Insert order
+        A->>S: Create payment session
+        S->>A: Webhook (payment status)
+        A->>D: Update order status
+        F->>U: Show order/payment status
+    </pre>
+  </div>
+
+  <h2>5. Useful References</h2>
+  <ul>
+    <li>Project setup and environment variables: <code>README.md</code></li>
+    <li>Database schema details: <code>db/schema.sql</code></li>
+    <li>Stripe integration: <code>src/lib/stripe.ts</code>, <code>src/app/api/webhooks/</code></li>
+    <li>Dashboard analytics: <code>src/app/store/page.tsx</code></li>
+  </ul>
+
+  <h2>6. Detailed Database Schema</h2>
+  <div class="diagram">
+    <pre style="white-space: pre-wrap; background:#fff; padding:1em; border-radius:8px;">
+<b>ENUM Types</b>
+- <b>order_status</b>: 'in-progress', 'waiting-for-payment', 'paid', 'cancelled'
+- <b>payment_status</b>: 'pending', 'succeeded', 'failed', 'refunded'
+
+<b>menus</b>
+- id SERIAL PRIMARY KEY
+- name VARCHAR(255) NOT NULL
+- category VARCHAR(100)
+- price NUMERIC NOT NULL
+- description TEXT
+- image_url VARCHAR(255)
+- created_at TIMESTAMP DEFAULT NOW()
+- updated_at TIMESTAMP DEFAULT NOW()
+
+<b>ingredients</b>
+- id SERIAL PRIMARY KEY
+- name VARCHAR(255) NOT NULL
+- quantity NUMERIC NOT NULL DEFAULT 0
+- unit VARCHAR(50) NOT NULL
+- threshold NUMERIC NOT NULL DEFAULT 0
+- created_at TIMESTAMP DEFAULT NOW()
+- updated_at TIMESTAMP DEFAULT NOW()
+
+<b>menu_item_ingredients</b> (pivot table)
+- menu_item_id INTEGER NOT NULL REFERENCES menus(id)
+- ingredient_id INTEGER NOT NULL REFERENCES ingredients(id)
+- amount_required NUMERIC NOT NULL
+- created_at TIMESTAMP DEFAULT NOW()
+- updated_at TIMESTAMP DEFAULT NOW()
+- PRIMARY KEY (menu_item_id, ingredient_id)
+
+<b>orders</b>
+- id SERIAL PRIMARY KEY
+- table_number VARCHAR(50) NOT NULL
+- number_of_customers INTEGER NOT NULL
+- total_price NUMERIC NOT NULL
+- status order_status DEFAULT 'in-progress'
+- shipping_address JSON
+- created_at TIMESTAMP DEFAULT NOW()
+- updated_at TIMESTAMP DEFAULT NOW()
+
+<b>order_items</b>
+- id SERIAL PRIMARY KEY
+- order_id INTEGER NOT NULL REFERENCES orders(id)
+- menu_item_id INTEGER NOT NULL REFERENCES menus(id)
+- quantity INTEGER NOT NULL
+- price_at_order NUMERIC NOT NULL
+- created_at TIMESTAMP DEFAULT NOW()
+- updated_at TIMESTAMP DEFAULT NOW()
+
+<b>payments</b>
+- id SERIAL PRIMARY KEY
+- order_id INTEGER NOT NULL REFERENCES orders(id)
+- stripe_session_id VARCHAR(255)
+- payment_intent_id VARCHAR(255)
+- payment_method VARCHAR(100)
+- payment_status payment_status DEFAULT 'pending'
+- created_at TIMESTAMP DEFAULT NOW()
+
+<b>Indexes</b>
+- orders(status)
+- orders(created_at)
+- order_items(order_id)
+- payments(order_id)
+    </pre>
+  </div>
+
+  <h2>7. Action Flow: Creating an Order from POS</h2>
+  <p>This section describes how an order is created using the POS page (<code>src/app/pos</code>).</p>
+  <ul>
+    <li><b>User Interaction:</b> User selects products, sets table and customer count, and manages the cart in the POS interface.</li>
+    <li><b>Order Placement:</b> Clicking "Place Order" triggers a POST request to the backend API with order details.</li>
+    <li><b>API Processing:</b> The API validates and saves the order and items to the database.</li>
+    <li><b>Confirmation:</b> The frontend receives confirmation and clears the cart for the next order.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User (POS Page)
+        participant F as Frontend (src/app/pos)
+        participant A as API Route (/api/orders)
+        participant D as Database
+
+        U->>F: Select products, set table, etc.
+        F->>F: Update cart state
+        U->>F: Click Place Order
+        F->>A: POST /api/orders (order data)
+        A->>D: Insert order, order_items
+        D-->>A: DB write/confirmation
+        A-->>F: Respond with order confirmation
+        F-->>U: Show order success, clear cart
+    </pre>
+  </div>
+
+  <h2>8. Action Flow: Ingredient Management</h2>
+  <p>This section describes how ingredients are managed using the Ingredient Management page (<code>src/app/ingredient-management</code>).</p>
+  <ul>
+    <li><b>View Ingredients:</b> Fetch and display all ingredients from the backend.</li>
+    <li><b>Add/Edit Ingredient:</b> Open a modal to create or edit ingredient details (name, quantity, unit, threshold).</li>
+    <li><b>Save Ingredient:</b> POST (create) or PUT (edit) to <code>/api/ingredients</code> endpoints.</li>
+    <li><b>Delete Ingredient:</b> Remove an ingredient via DELETE request.</li>
+    <li><b>Add Stock:</b> Open modal to add stock to an ingredient, then update via PATCH or similar API call.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User (Ingredient Management)
+        participant F as Frontend (src/app/ingredient-management)
+        participant A as API Route (/api/ingredients)
+        participant D as Database
+
+        U->>F: View/Add/Edit/Delete/Add Stock
+        F->>A: GET/POST/PUT/DELETE/PATCH /api/ingredients
+        A->>D: Query/update ingredient records
+        D-->>A: DB response
+        A-->>F: API response
+        F-->>U: Update UI
+    </pre>
+  </div>
+
+  <h2>9. Action Flow: Menu Management</h2>
+  <p>This section describes how menu items are managed using the Menu Management page (<code>src/app/MenuManagement</code>).</p>
+  <ul>
+    <li><b>View Menus:</b> Fetch and display all menu items from the backend.</li>
+    <li><b>Add/Edit Menu Item:</b> Open a modal to create or edit menu item details (name, category, price, description, image, ingredients).</li>
+    <li><b>Save Menu Item:</b> POST (create) or PUT (edit) to <code>/api/menus</code> endpoints.</li>
+    <li><b>Delete Menu Item:</b> Remove a menu item via DELETE request.</li>
+    <li><b>Upload Image:</b> Upload image file to <code>/api/upload</code> and link to menu item.</li>
+    <li><b>Manage Ingredients:</b> Add/remove ingredients for each menu item.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User (Menu Management)
+        participant F as Frontend (src/app/MenuManagement)
+        participant A as API Route (/api/menus, /api/upload)
+        participant D as Database
+
+        U->>F: View/Add/Edit/Delete Menu, Upload Image
+        F->>A: GET/POST/PUT/DELETE /api/menus, POST /api/upload
+        A->>D: Query/update menu records
+        D-->>A: DB response
+        A-->>F: API response
+        F-->>U: Update UI
+    </pre>
+  </div>
+
+  <h2>10. Dashboard Analytics Flow</h2>
+  <p>This section describes how analytics data is fetched and displayed in the Store Dashboard (<code>src/app/store</code>).</p>
+  <ul>
+    <li><b>Data Fetch:</b> Frontend fetches analytics from <code>/api/store-analytics</code> (sales, orders, customers, top items, etc.).</li>
+    <li><b>Aggregation:</b> API aggregates data from the database and returns metrics and charts.</li>
+    <li><b>Display & Export:</b> Frontend displays the analytics and allows export to CSV/PDF.</li>
+    <li><b>Filtering:</b> User can filter by time range and refresh data.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User (Dashboard)
+        participant F as Frontend (src/app/store)
+        participant A as API Route (/api/store-analytics)
+        participant D as Database
+
+        U->>F: Open dashboard, select filters, export
+        F->>A: GET /api/store-analytics?range=...
+        A->>D: Query/aggregate analytics data
+        D-->>A: Analytics results
+        A-->>F: Send metrics/charts/tables
+        F-->>U: Show dashboard, export file
+    </pre>
+  </div>
+
+  <h2>11. Export Data Flow (CSV/PDF)</h2>
+  <p>This section describes how dashboard data is exported to CSV or PDF.</p>
+  <ul>
+    <li><b>Export Trigger:</b> User clicks Export (CSV/PDF) in the dashboard.</li>
+    <li><b>Export Generation:</b> Frontend generates or requests export file (client-side or via API).</li>
+    <li><b>Download:</b> File is downloaded or opened for the user.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User (Dashboard)
+        participant F as Frontend (src/app/store)
+        participant A as API Route (optional)
+        U->>F: Click Export (CSV/PDF)
+        alt Client-side export
+            F->>U: Download file (CSV/PDF)
+        else Server-side export
+            F->>A: Request export file
+            A-->>F: Return file
+            F->>U: Download file
+        end
+    </pre>
+  </div>
+
+  <h2>12. Stripe Payment Webhook Flow</h2>
+  <p>This section describes how Stripe payment confirmations are handled by the webhook endpoint.</p>
+  <ul>
+    <li><b>Payment:</b> User pays via Stripe Checkout.</li>
+    <li><b>Webhook:</b> Stripe sends webhook to <code>/api/webhooks</code>.</li>
+    <li><b>Update:</b> API verifies event, updates payment and order status in the database.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant Stripe as Stripe
+        participant A as API Route (/api/webhooks)
+        participant D as Database
+
+        Stripe->>A: POST webhook (payment_intent.succeeded)
+        A->>D: Update payment/order status
+        D-->>A: DB confirmation
+    </pre>
+  </div>
+
+  <h2>13. General API Error Handling Flow</h2>
+  <p>This section describes how errors are handled and surfaced to users throughout the app.</p>
+  <ul>
+    <li><b>Error Trigger:</b> User action triggers an API call.</li>
+    <li><b>API Error:</b> API returns error (validation, server, etc.).</li>
+    <li><b>Display:</b> Frontend displays error alert or message to the user.</li>
+  </ul>
+  <div class="diagram">
+    <pre class="mermaid">
+      sequenceDiagram
+        participant U as User
+        participant F as Frontend
+        participant A as API Route
+
+        U->>F: Trigger action
+        F->>A: API call
+        A-->>F: Error response
+        F-->>U: Show error alert/message
+    </pre>
+  </div>
+
+  <h2>14. API Endpoint Reference</h2>
+  <p>This section provides a detailed summary of the main API endpoints available in this POS system. For full interactive documentation, see <code>swagger.yaml</code> at the project root.</p>
+  <ul>
+    <li><b>GET /api/orders</b>: List all orders</li>
+    <li><b>POST /api/orders</b>: Create a new order<br/>
+      <b>Request Example:</b>
+      <pre>{
+  "table_number": "A1",
+  "number_of_customers": 4,
+  "items": [ { "menu_item_id": 1, "quantity": 2 } ]
+}</pre>
+    </li>
+    <li><b>PATCH /api/orders/{id}</b>: Update an order's status or details</li>
+    <li><b>GET /api/menus</b>: List all menu items</li>
+    <li><b>POST /api/menus</b>: Create a new menu item<br/>
+      <b>Request Example:</b>
+      <pre>{
+  "name": "Pad Thai",
+  "category": "Main Dish",
+  "price": 120,
+  "description": "Thai stir-fried noodles",
+  "image_url": "...",
+  "ingredients": [ { "name": "Noodle", "amount": 1 } ]
+}</pre>
+    </li>
+    <li><b>PUT /api/menus/{id}</b>: Update a menu item</li>
+    <li><b>DELETE /api/menus/{id}</b>: Delete a menu item</li>
+    <li><b>GET /api/ingredients</b>: List all ingredients</li>
+    <li><b>POST /api/ingredients</b>: Create a new ingredient<br/>
+      <b>Request Example:</b>
+      <pre>{
+  "name": "Noodle",
+  "quantity": 100,
+  "unit": "g",
+  "threshold": 10
+}</pre>
+    </li>
+    <li><b>PUT /api/ingredients/{id}</b>: Update an ingredient</li>
+    <li><b>DELETE /api/ingredients/{id}</b>: Delete an ingredient</li>
+    <li><b>POST /api/payments</b>: Record a payment<br/>
+      <b>Request Example:</b>
+      <pre>{
+  "orderId": 123,
+  "paymentMethod": "cash",
+  "paymentStatus": "succeeded"
+}</pre>
+    </li>
+    <li><b>GET /api/store-analytics</b>: Get store analytics (query param: <code>range=day|week|month|year</code>)</li>
+    <li><b>POST /api/upload</b>: Upload a file (image for menu item)</li>
+    <li><b>POST /api/create-checkout-session</b>: Create a Stripe checkout session<br/>
+      <b>Request Example:</b>
+      <pre>{
+  "orderId": 123,
+  "amount": 10000,
+  "currency": "thb"
+}</pre>
+    </li>
+    <li><b>POST /api/webhooks/stripe</b>: Stripe webhook endpoint</li>
+  </ul>
+  <p>See <code>swagger.yaml</code> for schemas, responses, and further details.</p>
+
+  <h2>15. API-to-SQL Mapping</h2>
+  <p>This section shows the typical SQL queries or operations involved for each main API action. This helps clarify how each endpoint interacts with the database schema.</p>
+  <ul>
+    <li><b>GET /api/orders</b>:<br/>
+      <code>SELECT * FROM orders;</code>
+    </li>
+    <li><b>POST /api/orders</b>:<br/>
+      <code>INSERT INTO orders (table_number, number_of_customers, total_price, status, created_at) VALUES (...);</code><br/>
+      <code>INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order) VALUES (...);</code>
+    </li>
+    <li><b>PATCH /api/orders/{id}</b>:<br/>
+      <code>UPDATE orders SET status = ... WHERE id = ...;</code>
+    </li>
+    <li><b>GET /api/menus</b>:<br/>
+      <code>SELECT * FROM menus;</code>
+    </li>
+    <li><b>POST /api/menus</b>:<br/>
+      <code>INSERT INTO menus (name, category, price, description, image_url, created_at) VALUES (...);</code><br/>
+      <code>INSERT INTO menu_item_ingredients (menu_item_id, ingredient_id, amount_required) VALUES (...);</code>
+    </li>
+    <li><b>PUT /api/menus/{id}</b>:<br/>
+      <code>UPDATE menus SET ... WHERE id = ...;</code>
+    </li>
+    <li><b>DELETE /api/menus/{id}</b>:<br/>
+      <code>DELETE FROM menus WHERE id = ...;</code>
+    </li>
+    <li><b>GET /api/ingredients</b>:<br/>
+      <code>SELECT * FROM ingredients;</code>
+    </li>
+    <li><b>POST /api/ingredients</b>:<br/>
+      <code>INSERT INTO ingredients (name, quantity, unit, threshold, created_at) VALUES (...);</code>
+    </li>
+    <li><b>PUT /api/ingredients/{id}</b>:<br/>
+      <code>UPDATE ingredients SET ... WHERE id = ...;</code>
+    </li>
+    <li><b>DELETE /api/ingredients/{id}</b>:<br/>
+      <code>DELETE FROM ingredients WHERE id = ...;</code>
+    </li>
+    <li><b>POST /api/payments</b>:<br/>
+      <code>INSERT INTO payments (order_id, payment_method, payment_status, created_at) VALUES (...);</code>
+    </li>
+    <li><b>GET /api/store-analytics</b>:<br/>
+      <code>SELECT COUNT(*), SUM(total_price), ... FROM orders WHERE created_at BETWEEN ...;</code><br/>
+      <code>SELECT menu_item_id, SUM(quantity) FROM order_items GROUP BY menu_item_id;</code>
+    </li>
+    <li><b>POST /api/upload</b>:<br/>
+      <i>File is saved to disk or cloud storage; DB may be updated with file path.</i>
+    </li>
+    <li><b>POST /api/create-checkout-session</b>:<br/>
+      <i>Interacts with Stripe API; may update orders or payments table.</i>
+    </li>
+    <li><b>POST /api/webhooks/stripe</b>:<br/>
+      <code>UPDATE payments SET payment_status = 'succeeded' WHERE payment_intent_id = ...;</code><br/>
+      <code>UPDATE orders SET status = 'paid' WHERE id = ...;</code>
+    </li>
+  </ul>
+
+  <hr/>
+  <p style="font-size:0.95em;color:#666;">This overview was generated automatically from the project structure and documentation.</p>
+</body>
+</html>

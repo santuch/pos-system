@@ -6,18 +6,17 @@ interface Order {
     id: number;
     status: string;
     created_at: string;
-    // Add other fields as needed based on your orders table schema
 }
 
 interface DailySalesRow {
     date: string;
-    totalSales: string; // This comes from the query as a string
+    totalSales: string; 
 }
 
 interface TopItemRow {
     name: string;
-    totalQuantity: string; // from the query, typically as string
-    totalRevenue: string; // from the query, typically as string
+    totalQuantity: string; 
+    totalRevenue: string; 
 }
 
 export async function GET(request: Request) {
