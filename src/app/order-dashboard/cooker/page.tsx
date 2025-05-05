@@ -35,6 +35,20 @@ export default function CookerDashboard() {
 
     useEffect(() => {
         fetchOrders();
+        const interval = setInterval(fetchOrders, 5000);
+
+        // Listen for new-order broadcasts
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === "new-order") {
+                fetchOrders();
+            }
+        };
+        window.addEventListener("storage", handleStorage);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener("storage", handleStorage);
+        };
     }, []);
 
     // Fetch orders 
@@ -66,6 +80,10 @@ export default function CookerDashboard() {
             });
             if (res.ok) {
                 fetchOrders();
+                // Notify payment dashboard that an order is ready
+                if (newStatus === "waiting-for-payment") {
+                    localStorage.setItem("order-ready", Date.now().toString());
+                }
             } else {
                 console.error("Failed to update order status");
             }

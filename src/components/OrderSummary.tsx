@@ -98,6 +98,8 @@ export default function OrderSummary({
             } else {
                 onPlaceOrder(); // Clear cart on success
                 setShowSuccess(true);
+                // Notify other tabs of new order
+                localStorage.setItem("new-order", Date.now().toString());
                 setTimeout(() => setShowSuccess(false), 2500);
             }
         } catch (error) {
