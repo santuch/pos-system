@@ -35,23 +35,10 @@ export default function CookerDashboard() {
 
     useEffect(() => {
         fetchOrders();
-        const interval = setInterval(fetchOrders, 5000);
-
-        // Listen for new-order broadcasts
-        const handleStorage = (e: StorageEvent) => {
-            if (e.key === "new-order") {
-                fetchOrders();
-            }
-        };
-        window.addEventListener("storage", handleStorage);
-
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener("storage", handleStorage);
-        };
+        return () => {};
     }, []);
 
-    // Fetch orders 
+    // Fetch orders
     const fetchOrders = async () => {
         setLoading(true);
         try {

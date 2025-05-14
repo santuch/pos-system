@@ -40,20 +40,7 @@ export default function PaymentDashboard() {
 
     useEffect(() => {
         fetchOrders();
-        const interval = setInterval(fetchOrders, 5000);
-
-        // Listen for new-order broadcasts
-        const handleStorage = (e: StorageEvent) => {
-            if (e.key === "new-order" || e.key === "order-ready") {
-                fetchOrders();
-            }
-        };
-        window.addEventListener("storage", handleStorage);
-
-        return () => {
-            clearInterval(interval);
-            window.removeEventListener("storage", handleStorage);
-        };
+        return () => {};
     }, []);
 
     const fetchOrders = async () => {
@@ -80,7 +67,7 @@ export default function PaymentDashboard() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: "paid" }),
             });
-            
+
             // Then create a payment record for the cash payment
             const paymentRes = await fetch("/api/payments", {
                 method: "POST",
@@ -88,10 +75,10 @@ export default function PaymentDashboard() {
                 body: JSON.stringify({
                     orderId: order.id,
                     paymentMethod: "cash",
-                    paymentStatus: "succeeded"
+                    paymentStatus: "succeeded",
                 }),
             });
-            
+
             if (statusRes.ok && paymentRes.ok) {
                 fetchOrders(); // Refresh the orders list
             } else {
@@ -192,7 +179,10 @@ export default function PaymentDashboard() {
                                         <div className="flex items-center font-bold">
                                             <DollarSign className="mr-2 h-4 w-4" />
                                             <span>
-                                                {Number(order.total_price).toFixed(2)} THB
+                                                {Number(
+                                                    order.total_price
+                                                ).toFixed(2)}{" "}
+                                                THB
                                             </span>
                                         </div>
                                     </div>
@@ -210,15 +200,20 @@ export default function PaymentDashboard() {
                                     </Button>
                                     <Button
                                         className="w-full"
-                                        onClick={() => handleStripePayment(order)}
+                                        onClick={() =>
+                                            handleStripePayment(order)
+                                        }
                                     >
-                                        <CreditCard className="mr-2 h-4 w-4" /> Pay with Stripe
+                                        <CreditCard className="mr-2 h-4 w-4" />{" "}
+                                        Pay with Stripe
                                     </Button>
                                     <div className="flex gap-2 w-full">
                                         <Button
                                             variant="outline"
                                             className="flex-1"
-                                            onClick={() => handleCashPayment(order)}
+                                            onClick={() =>
+                                                handleCashPayment(order)
+                                            }
                                         >
                                             Mark as Paid
                                         </Button>
@@ -227,16 +222,29 @@ export default function PaymentDashboard() {
                                             className="flex-1"
                                             onClick={async () => {
                                                 try {
-                                                    const res = await fetch(`/api/orders/${order.id}`, {
-                                                        method: "PATCH",
-                                                        headers: { "Content-Type": "application/json" },
-                                                        body: JSON.stringify({ status: "cancelled" }),
-                                                    });
+                                                    const res = await fetch(
+                                                        `/api/orders/${order.id}`,
+                                                        {
+                                                            method: "PATCH",
+                                                            headers: {
+                                                                "Content-Type":
+                                                                    "application/json",
+                                                            },
+                                                            body: JSON.stringify(
+                                                                {
+                                                                    status: "cancelled",
+                                                                }
+                                                            ),
+                                                        }
+                                                    );
                                                     if (res.ok) {
                                                         fetchOrders();
                                                     }
                                                 } catch (error) {
-                                                    console.error("Error cancelling order:", error);
+                                                    console.error(
+                                                        "Error cancelling order:",
+                                                        error
+                                                    );
                                                 }
                                             }}
                                         >
